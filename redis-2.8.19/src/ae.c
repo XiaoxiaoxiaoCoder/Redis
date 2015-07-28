@@ -62,7 +62,7 @@
 
 /* ----------------------------------------------------------------------*/
 /**
- * @brief:aeCreateEventLoop 创建时间循环结构体 git 测试
+ * @brief:aeCreateEventLoop 创建时间循环结构体 
  *
  * @param:setsize           允许最大的注册事件数量
  *
