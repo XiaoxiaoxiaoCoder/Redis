@@ -33,19 +33,19 @@
 #ifndef __AE_H__
 #define __AE_H__
 
-#define AE_OK 0
-#define AE_ERR -1
+#define AE_OK           0
+#define AE_ERR          -1
 
-#define AE_NONE 0
-#define AE_READABLE 1
-#define AE_WRITABLE 2
+#define AE_NONE         0
+#define AE_READABLE     1
+#define AE_WRITABLE     2
 
-#define AE_FILE_EVENTS 1
-#define AE_TIME_EVENTS 2
-#define AE_ALL_EVENTS (AE_FILE_EVENTS|AE_TIME_EVENTS)
-#define AE_DONT_WAIT 4
+#define AE_FILE_EVENTS  1
+#define AE_TIME_EVENTS  2
+#define AE_ALL_EVENTS   (AE_FILE_EVENTS|AE_TIME_EVENTS)
+#define AE_DONT_WAIT    4
 
-#define AE_NOMORE -1
+#define AE_NOMORE       -1
 
 /* Macros */
 #define AE_NOTUSED(V) ((void) V)
@@ -68,9 +68,9 @@ typedef struct aeFileEvent {
 
 /* Time event structure */
 typedef struct aeTimeEvent {
-    long long id; /* time event identifier. */
-    long when_sec; /* seconds */
-    long when_ms; /* milliseconds */
+    long long id;   /* time event identifier. */
+    long when_sec;  /* seconds */
+    long when_ms;   /* milliseconds */
     aeTimeProc *timeProc;
     aeEventFinalizerProc *finalizerProc;
     void *clientData;
@@ -93,6 +93,9 @@ typedef struct aeEventLoop {
     aeFiredEvent *fired; /* Fired events */
     aeTimeEvent *timeEventHead;
     int stop;
+    /*
+     * 事件分发模型特有的数据结构
+     */
     void *apidata; /* This is used for polling API specific data */
     aeBeforeSleepProc *beforesleep;
 } aeEventLoop;

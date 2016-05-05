@@ -31,11 +31,17 @@
 
 #include <sys/epoll.h>
 
+/*
+ * epoll 类型事件分发数据结构
+ */
 typedef struct aeApiState {
-    int epfd;
-    struct epoll_event *events;
+    int epfd;                       //epoll 句柄
+    struct epoll_event *events;     //事件数组结构
 } aeApiState;
 
+/*
+ * 创建一个 epoll 事件分发结构对象
+ */
 static int aeApiCreate(aeEventLoop *eventLoop) {
     aeApiState *state = zmalloc(sizeof(aeApiState));
 
@@ -55,6 +61,9 @@ static int aeApiCreate(aeEventLoop *eventLoop) {
     return 0;
 }
 
+/*
+ * 重置事件数组大小
+ */
 static int aeApiResize(aeEventLoop *eventLoop, int setsize) {
     aeApiState *state = eventLoop->apidata;
 
@@ -62,6 +71,9 @@ static int aeApiResize(aeEventLoop *eventLoop, int setsize) {
     return 0;
 }
 
+/*
+ * 释放事件分发结构
+ */
 static void aeApiFree(aeEventLoop *eventLoop) {
     aeApiState *state = eventLoop->apidata;
 
@@ -70,6 +82,9 @@ static void aeApiFree(aeEventLoop *eventLoop) {
     zfree(state);
 }
 
+/*
+ * 添加一个事件至事件分发中
+ */
 static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee;
@@ -88,6 +103,9 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     return 0;
 }
 
+/*
+ * 从事件分发数组中删除一个句柄指定的事件
+ */
 static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     aeApiState *state = eventLoop->apidata;
     struct epoll_event ee;
@@ -107,6 +125,9 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int delmask) {
     }
 }
 
+/*
+ * 事件监听
+ */
 static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;
@@ -132,6 +153,9 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     return numevents;
 }
 
+/*
+ * api 名字
+ */
 static char *aeApiName(void) {
     return "epoll";
 }
