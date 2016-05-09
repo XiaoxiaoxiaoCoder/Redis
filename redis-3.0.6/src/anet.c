@@ -48,6 +48,9 @@
 
 #include "anet.h"
 
+/*
+ * 设置错误信息
+ */
 static void anetSetError(char *err, const char *fmt, ...)
 {
     va_list ap;
@@ -58,6 +61,9 @@ static void anetSetError(char *err, const char *fmt, ...)
     va_end(ap);
 }
 
+/*
+ * 设置指定句柄的阻塞模式
+ */
 int anetSetBlock(char *err, int fd, int non_block) {
     int flags;
 
@@ -81,10 +87,16 @@ int anetSetBlock(char *err, int fd, int non_block) {
     return ANET_OK;
 }
 
+/*
+ * 将指定句柄设置为非阻塞模式
+ */
 int anetNonBlock(char *err, int fd) {
     return anetSetBlock(err,fd,1);
 }
 
+/*
+ * 将指定句柄设定为阻塞模式
+ */
 int anetBlock(char *err, int fd) {
     return anetSetBlock(err,fd,0);
 }
@@ -92,6 +104,9 @@ int anetBlock(char *err, int fd) {
 /* Set TCP keep alive option to detect dead peers. The interval option
  * is only used for Linux as we are using Linux-specific APIs to set
  * the probe send time, interval, and count. */
+/*
+ * 设置指定句柄的 KeepAlive 属性
+ */
 int anetKeepAlive(char *err, int fd, int interval)
 {
     int val = 1;
@@ -138,6 +153,9 @@ int anetKeepAlive(char *err, int fd, int interval)
     return ANET_OK;
 }
 
+/*
+ * 设置延时发送属性 将小包合并一起发送
+ */
 static int anetSetTcpNoDelay(char *err, int fd, int val)
 {
     if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1)
@@ -148,17 +166,26 @@ static int anetSetTcpNoDelay(char *err, int fd, int val)
     return ANET_OK;
 }
 
+/*
+ * 关闭延时发送
+ */
 int anetEnableTcpNoDelay(char *err, int fd)
 {
     return anetSetTcpNoDelay(err, fd, 1);
 }
 
+/*
+ * 开启延时发送
+ */
 int anetDisableTcpNoDelay(char *err, int fd)
 {
     return anetSetTcpNoDelay(err, fd, 0);
 }
 
 
+/*
+ * 设置发送缓存区大小
+ */
 int anetSetSendBuffer(char *err, int fd, int buffsize)
 {
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffsize, sizeof(buffsize)) == -1)
@@ -169,6 +196,9 @@ int anetSetSendBuffer(char *err, int fd, int buffsize)
     return ANET_OK;
 }
 
+/*
+ * 设置 KeepAlive 属性
+ */
 int anetTcpKeepAlive(char *err, int fd)
 {
     int yes = 1;
@@ -181,6 +211,9 @@ int anetTcpKeepAlive(char *err, int fd)
 
 /* Set the socket send timeout (SO_SNDTIMEO socket option) to the specified
  * number of milliseconds, or disable it if the 'ms' argument is zero. */
+/*
+ * 设置发送超时时间
+ */
 int anetSendTimeout(char *err, int fd, long long ms) {
     struct timeval tv;
 
@@ -235,6 +268,9 @@ int anetResolveIP(char *err, char *host, char *ipbuf, size_t ipbuf_len) {
     return anetGenericResolve(err,host,ipbuf,ipbuf_len,ANET_IP_ONLY);
 }
 
+/*
+ * 设置地址复用
+ */
 static int anetSetReuseAddr(char *err, int fd) {
     int yes = 1;
     /* Make sure connection-intensive things like the redis benckmark
@@ -246,6 +282,9 @@ static int anetSetReuseAddr(char *err, int fd) {
     return ANET_OK;
 }
 
+/*
+ * 创建一个套接字句柄
+ */
 static int anetCreateSocket(char *err, int domain) {
     int s;
     if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
@@ -435,6 +474,9 @@ int anetWrite(int fd, char *buf, int count)
     return totlen;
 }
 
+/*
+ * 监听
+ */
 static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len, int backlog) {
     if (bind(s,sa,len) == -1) {
         anetSetError(err, "bind: %s", strerror(errno));
@@ -460,6 +502,9 @@ static int anetV6Only(char *err, int s) {
     return ANET_OK;
 }
 
+/*
+ * 创建一个监听套接字
+ */
 static int _anetTcpServer(char *err, int port, char *bindaddr, int af, int backlog)
 {
     int s, rv;
@@ -542,6 +587,9 @@ static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *l
     return fd;
 }
 
+/*
+ * 接收一个connect
+ */
 int anetTcpAccept(char *err, int s, char *ip, size_t ip_len, int *port) {
     int fd;
     struct sockaddr_storage sa;

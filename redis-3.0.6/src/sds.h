@@ -38,17 +38,29 @@
 
 typedef char *sds;
 
+/*
+ * 动态字符串数据结构
+ */
 struct sdshdr {
+    /*已使用空间大小*/
     unsigned int len;
+    /*空闲空间大小*/
     unsigned int free;
+    /*数据存储区*/
     char buf[];
 };
 
+/*
+ * 获取动态字符串的长度
+ */
 static inline size_t sdslen(const sds s) {
     struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
     return sh->len;
 }
 
+/*
+ * 获取动态字符串的空闲长度
+ */
 static inline size_t sdsavail(const sds s) {
     struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
     return sh->free;

@@ -126,6 +126,9 @@ void sdsclear(sds s) {
  *
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
+/*
+ * 扩充动态字符串空间以足够容纳新增内容
+ */
 sds sdsMakeRoomFor(sds s, size_t addlen) {
     struct sdshdr *sh, *newsh;
     size_t free = sdsavail(s);
@@ -214,6 +217,9 @@ void sdsIncrLen(sds s, int incr) {
  *
  * if the specified length is smaller than the current length, no operation
  * is performed. */
+/*
+ * 将制定字符串 s 增长指定长度，增长的空间用
+ */
 sds sdsgrowzero(sds s, size_t len) {
     struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
     size_t totlen, curlen = sh->len;
@@ -815,6 +821,9 @@ int hex_digit_to_int(char c) {
  * input string is empty, or NULL if the input contains unbalanced
  * quotes or closed quotes followed by non space characters
  * as in: "foo"bar or "foo'
+ */
+/*
+ * 分割字符串，返回以数组形式存储
  */
 sds *sdssplitargs(const char *line, int *argc) {
     const char *p = line;
