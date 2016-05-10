@@ -540,11 +540,14 @@ typedef struct redisClient {
     int reqtype;
     int multibulklen;       /* number of multi bulk arguments left to read */
     long bulklen;           /* length of bulk argument in multi bulk request */
+    /*回复缓存链表*/
     list *reply;
     unsigned long reply_bytes; /* Tot bytes of objects in reply list */
     int sentlen;            /* Amount of bytes already sent in the current
                                buffer or object being sent. */
+    /*Client创建时间*/
     time_t ctime;           /* Client creation time */
+    /*最近的活跃时间*/
     time_t lastinteraction; /* time of the last interaction, used for timeout */
     time_t obuf_soft_limit_reached_time;
     int flags;              /* REDIS_SLAVE | REDIS_MONITOR | REDIS_MULTI ... */
@@ -564,6 +567,7 @@ typedef struct redisClient {
     char replrunid[REDIS_RUN_ID_SIZE+1]; /* master run id if this is a master */
     int slave_listening_port; /* As configured with: SLAVECONF listening-port */
     int slave_capa;         /* Slave capabilities: SLAVE_CAPA_* bitwise OR. */
+    /*事物命令的状态*/
     multiState mstate;      /* MULTI/EXEC state */
     int btype;              /* Type of blocking op if REDIS_BLOCKED. */
     blockingState bpop;     /* blocking state */
@@ -1582,3 +1586,5 @@ void redisLogHexDump(int level, char *descr, void *value, size_t len);
     printf("-- MARK %s:%d --\n", __FILE__, __LINE__)
 
 #endif
+    回复缓存链表
+    最近的活跃时间
