@@ -532,13 +532,17 @@ typedef struct redisClient {
     redisDb *db;
     int dictid;
     robj *name;             /* As set by CLIENT SETNAME */
+    /*请求命令数据缓存*/
     sds querybuf;
+    /*未处理的请求数据大小*/
     size_t querybuf_peak;   /* Recent (100ms or more) peak of querybuf size */
     int argc;
     robj **argv;
     struct redisCommand *cmd, *lastcmd;
     int reqtype;
+    /*multi bulk 参数的个数*/
     int multibulklen;       /* number of multi bulk arguments left to read */
+    /*解析参数时，单个参数的长度*/
     long bulklen;           /* length of bulk argument in multi bulk request */
     /*回复缓存链表*/
     list *reply;

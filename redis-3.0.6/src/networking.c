@@ -994,6 +994,9 @@ void resetClient(redisClient *c) {
         c->flags &= (~REDIS_ASKING);
 }
 
+/*
+ * 解析 inline 协议(以空格做分隔符, \n 为结束符)
+ */
 int processInlineBuffer(redisClient *c) {
     char *newline;
     int argc, j;
@@ -1013,13 +1016,16 @@ int processInlineBuffer(redisClient *c) {
     }
 
     /* Handle the \r\n case. */
+    /*
+     * 处理 \r\n
+     */
     if (newline && newline != c->querybuf && *(newline-1) == '\r')
         newline--;
 
     /* Split the input buffer up to the \r\n */
-    querylen = newline-(c->querybuf);
-    aux = sdsnewlen(c->querybuf,querylen);
-    argv = sdssplitargs(aux,&argc);
+    querylen = newline-(c->querybuf);               //协议长度
+    aux = sdsnewlen(c->querybuf,querylen);          //拷贝一份协议数据
+    argv = sdssplitargs(aux,&argc);                 //解析协议
     sdsfree(aux);
     if (argv == NULL) {
         addReplyError(c,"Protocol error: unbalanced quotes in request");
@@ -1030,10 +1036,16 @@ int processInlineBuffer(redisClient *c) {
     /* Newline from slaves can be used to refresh the last ACK time.
      * This is useful for a slave to ping back while loading a big
      * RDB file. */
+    /*
+     * 如果协议数据是空行，且来至从节点，则更新 last ACK time
+     */
     if (querylen == 0 && c->flags & REDIS_SLAVE)
         c->repl_ack_time = server.unixtime;
 
     /* Leave data after the first line of the query in the buffer */
+    /*
+     * 去除掉已解析的协议数据
+     */
     sdsrange(c->querybuf,querylen+2,-1);
 
     /* Setup argv array on client structure */
@@ -1043,6 +1055,9 @@ int processInlineBuffer(redisClient *c) {
     }
 
     /* Create redis objects for all arguments. */
+    /*
+     * 将协议数据以 redis object 对象方式存储至命令请求参数数组中
+     */
     for (c->argc = 0, j = 0; j < argc; j++) {
         if (sdslen(argv[j])) {
             c->argv[c->argc] = createObject(REDIS_STRING,argv[j]);
@@ -1057,6 +1072,9 @@ int processInlineBuffer(redisClient *c) {
 
 /* Helper function. Trims query buffer to make the function that processes
  * multi bulk requests idempotent. */
+/*
+ * 辅助函数，请求协议数据错误，处理错误数据
+ */
 static void setProtocolError(redisClient *c, int pos) {
     if (server.verbosity <= REDIS_VERBOSE) {
         sds client = catClientInfoString(sdsempty(),c);
@@ -1068,11 +1086,17 @@ static void setProtocolError(redisClient *c, int pos) {
     sdsrange(c->querybuf,pos,-1);
 }
 
+/*
+ * 解析 Multi Bulk 协议数据,即Redis特有协议格式
+ */
 int processMultibulkBuffer(redisClient *c) {
     char *newline = NULL;
     int pos = 0, ok;
     long long ll;
 
+    /*
+     * 开始处理一条完整的协议
+     */
     if (c->multibulklen == 0) {
         /* The client should have been reset */
         redisAssertWithInfo(c,NULL,c->argc == 0);
@@ -1106,7 +1130,7 @@ int processMultibulkBuffer(redisClient *c) {
             sdsrange(c->querybuf,pos,-1);
             return REDIS_OK;
         }
-
+        /*请求命令的参数个数*/
         c->multibulklen = ll;
 
         /* Setup argv array on client structure */
@@ -1115,6 +1139,9 @@ int processMultibulkBuffer(redisClient *c) {
     }
 
     redisAssertWithInfo(c,NULL,c->multibulklen > 0);
+    /*
+     * 解析所有参数 格式: $len\r\nargv\r\n
+     */
     while(c->multibulklen) {
         /* Read bulk length if unknown */
         if (c->bulklen == -1) {
@@ -1147,7 +1174,7 @@ int processMultibulkBuffer(redisClient *c) {
                 setProtocolError(c,pos);
                 return REDIS_ERR;
             }
-
+            /*ll 为参数长度*/
             pos += newline-(c->querybuf+pos)+2;
             if (ll >= REDIS_MBULK_BIG_ARG) {
                 size_t qblen;
@@ -1164,17 +1191,24 @@ int processMultibulkBuffer(redisClient *c) {
                 if (qblen < (size_t)ll+2)
                     c->querybuf = sdsMakeRoomFor(c->querybuf,ll+2-qblen);
             }
+            /*当前解析的参数的长度*/
             c->bulklen = ll;
         }
 
         /* Read bulk argument */
+        /*读取参数内容*/
         if (sdslen(c->querybuf)-pos < (unsigned)(c->bulklen+2)) {
             /* Not enough data (+2 == trailing \r\n) */
+            /*参数不完整，继续读取数据*/
             break;
         } else {
             /* Optimization: if the buffer contains JUST our bulk element
              * instead of creating a new object by *copying* the sds we
              * just use the current sds string. */
+            /*
+             * 如果整个 query buffer 仅仅只包含一个 bulk 参数，那么直接使用qurey
+             * 不用去创建一个新的 object 去拷贝 sds 的数据内容
+             */
             if (pos == 0 &&
                 c->bulklen >= REDIS_MBULK_BIG_ARG &&
                 (signed) sdslen(c->querybuf) == c->bulklen+2)
@@ -1187,6 +1221,9 @@ int processMultibulkBuffer(redisClient *c) {
                 c->querybuf = sdsMakeRoomFor(c->querybuf,c->bulklen+2);
                 pos = 0;
             } else {
+                /*
+                 * 创建一个 bulk 参数对象
+                 */
                 c->argv[c->argc++] =
                     createStringObject(c->querybuf+pos,c->bulklen);
                 pos += c->bulklen+2;
@@ -1197,30 +1234,42 @@ int processMultibulkBuffer(redisClient *c) {
     }
 
     /* Trim to pos */
+    /*去除已解析内容*/
     if (pos) sdsrange(c->querybuf,pos,-1);
 
     /* We're done when c->multibulk == 0 */
+    /*所有参数已解析完毕*/
     if (c->multibulklen == 0) return REDIS_OK;
 
     /* Still not read to process the command */
     return REDIS_ERR;
 }
 
+/*
+ * 解析请求数据协议
+ */
 void processInputBuffer(redisClient *c) {
     /* Keep processing while there is something in the input buffer */
     while(sdslen(c->querybuf)) {
         /* Return if clients are paused. */
+        /*如果该客户端是SLAVE 节点,则忽视暂停控制*/
         if (!(c->flags & REDIS_SLAVE) && clientsArePaused()) return;
 
         /* Immediately abort if the client is in the middle of something. */
+        /*如果 Client 正在进行某种操作中，立即终止 */
         if (c->flags & REDIS_BLOCKED) return;
 
         /* REDIS_CLOSE_AFTER_REPLY closes the connection once the reply is
          * written to the client. Make sure to not let the reply grow after
          * this flag has been set (i.e. don't process more commands). */
+        /*
+         * Client 已经被设置 REDIS_CLOSE_AFTER_REPLY，则不处理任何数据
+         * 以确保 reply 不会持续增长
+         */
         if (c->flags & REDIS_CLOSE_AFTER_REPLY) return;
 
         /* Determine request type when unknown. */
+        /*确定协议格式*/
         if (!c->reqtype) {
             if (c->querybuf[0] == '*') {
                 c->reqtype = REDIS_REQ_MULTIBULK;
@@ -1228,7 +1277,9 @@ void processInputBuffer(redisClient *c) {
                 c->reqtype = REDIS_REQ_INLINE;
             }
         }
-
+        /*
+         * 根据不同协议格式，解析协议数据
+         */
         if (c->reqtype == REDIS_REQ_INLINE) {
             if (processInlineBuffer(c) != REDIS_OK) break;
         } else if (c->reqtype == REDIS_REQ_MULTIBULK) {
@@ -1238,6 +1289,9 @@ void processInputBuffer(redisClient *c) {
         }
 
         /* Multibulk processing could see a <= 0 length. */
+        /*
+         * 处理请求命令
+         */
         if (c->argc == 0) {
             resetClient(c);
         } else {
@@ -1248,6 +1302,9 @@ void processInputBuffer(redisClient *c) {
     }
 }
 
+/*
+ * 读取请求数据
+ */
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisClient *c = (redisClient*) privdata;
     int nread, readlen;
@@ -1263,6 +1320,10 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
      * at the risk of requiring more read(2) calls. This way the function
      * processMultiBulkBuffer() can avoid copying buffers to create the
      * Redis Object representing the argument. */
+    /*
+     * 如果是 multi bulk 请求且是参数为大数据参数，则设置该次读取，只读取该参数内容
+     * 这样在解析协议的时候，可以直接使用querybuf，避免copy sds 去创建一个新 object
+     */
     if (c->reqtype == REDIS_REQ_MULTIBULK && c->multibulklen && c->bulklen != -1
         && c->bulklen >= REDIS_MBULK_BIG_ARG)
     {
@@ -1297,6 +1358,9 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         server.current_client = NULL;
         return;
     }
+     /*
+      * 请求数据的缓存是否超过限制的大小
+      */
     if (sdslen(c->querybuf) > server.client_max_querybuf_len) {
         sds ci = catClientInfoString(sdsempty(),c), bytes = sdsempty();
 
@@ -1311,6 +1375,9 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     server.current_client = NULL;
 }
 
+/*
+ * 获取所有客户端中最大的缓冲区大小
+ */
 void getClientsMaxBuffers(unsigned long *longest_output_list,
                           unsigned long *biggest_input_buffer) {
     redisClient *c;
@@ -1353,6 +1420,9 @@ void formatPeerId(char *peerid, size_t peerid_len, char *ip, int port) {
  * On failure the function still populates 'peerid' with the "?:0" string
  * in case you want to relax error checking or need to display something
  * anyway (see anetPeerToString implementation for more info). */
+/*
+ * 获取客户端的地址
+ */
 int genClientPeerId(redisClient *client, char *peerid, size_t peerid_len) {
     char ip[REDIS_IP_STR_LEN];
     int port;
@@ -1385,6 +1455,9 @@ char *getClientPeerId(redisClient *c) {
 
 /* Concatenate a string representing the state of a client in an human
  * readable format, into the sds string 's'. */
+/*
+ * 构造一个字符串代表当前Client的状态
+ */
 sds catClientInfoString(sds s, redisClient *client) {
     char flags[16], events[3], *p;
     int emask;
@@ -1435,6 +1508,9 @@ sds catClientInfoString(sds s, redisClient *client) {
         client->lastcmd ? client->lastcmd->name : "NULL");
 }
 
+/*
+ * 获取所有客户端的信息
+ */
 sds getAllClientsInfoString(void) {
     listNode *ln;
     listIter li;
@@ -1451,11 +1527,16 @@ sds getAllClientsInfoString(void) {
     return o;
 }
 
+/*
+ * client Command 命令
+ */
 void clientCommand(redisClient *c) {
     listNode *ln;
     listIter li;
     redisClient *client;
-
+    /*
+     * 获取所有客户端的信息
+     */
     if (!strcasecmp(c->argv[1]->ptr,"list") && c->argc == 2) {
         /* CLIENT LIST */
         sds o = getAllClientsInfoString();
@@ -1470,6 +1551,9 @@ void clientCommand(redisClient *c) {
         int skipme = 1;
         int killed = 0, close_this_client = 0;
 
+        /*
+         * 根据地址干掉客户端
+         */
         if (c->argc == 3) {
             /* Old style syntax: CLIENT KILL <addr> */
             addr = c->argv[2]->ptr;
@@ -1517,6 +1601,7 @@ void clientCommand(redisClient *c) {
         }
 
         /* Iterate clients killing all the matching clients. */
+        /*遍历客户端链表，干掉匹配的客户端*/
         listRewind(server.clients,&li);
         while ((ln = listNext(&li)) != NULL) {
             client = listNodeValue(ln);
@@ -1549,7 +1634,7 @@ void clientCommand(redisClient *c) {
         /* If this client has to be closed, flag it as CLOSE_AFTER_REPLY
          * only after we queued the reply to its output buffers. */
         if (close_this_client) c->flags |= REDIS_CLOSE_AFTER_REPLY;
-    } else if (!strcasecmp(c->argv[1]->ptr,"setname") && c->argc == 3) {
+    } else if (!strcasecmp(c->argv[1]->ptr,"setname") && c->argc == 3) {    //设置客户端名字
         int j, len = sdslen(c->argv[2]->ptr);
         char *p = c->argv[2]->ptr;
 
@@ -1577,12 +1662,12 @@ void clientCommand(redisClient *c) {
         c->name = c->argv[2];
         incrRefCount(c->name);
         addReply(c,shared.ok);
-    } else if (!strcasecmp(c->argv[1]->ptr,"getname") && c->argc == 2) {
+    } else if (!strcasecmp(c->argv[1]->ptr,"getname") && c->argc == 2) {        //获取客户端名字
         if (c->name)
             addReplyBulk(c,c->name);
         else
             addReply(c,shared.nullbulk);
-    } else if (!strcasecmp(c->argv[1]->ptr,"pause") && c->argc == 3) {
+    } else if (!strcasecmp(c->argv[1]->ptr,"pause") && c->argc == 3) {          //暂停客户端
         long long duration;
 
         if (getTimeoutFromObjectOrReply(c,c->argv[2],&duration,UNIT_MILLISECONDS)
@@ -1597,6 +1682,9 @@ void clientCommand(redisClient *c) {
 /* Rewrite the command vector of the client. All the new objects ref count
  * is incremented. The old command vector is freed, and the old objects
  * ref count is decremented. */
+/*
+ * 重写客户端等命令参数数组
+ */
 void rewriteClientCommandVector(redisClient *c, int argc, ...) {
     va_list ap;
     int j;
@@ -1625,6 +1713,9 @@ void rewriteClientCommandVector(redisClient *c, int argc, ...) {
 }
 
 /* Completely replace the client command vector with the provided one. */
+/*
+ * 替换客户端命令参数列表
+ */
 void replaceClientCommandVector(redisClient *c, int argc, robj **argv) {
     freeClientArgv(c);
     zfree(c->argv);
@@ -1645,6 +1736,9 @@ void replaceClientCommandVector(redisClient *c, int argc, robj **argv) {
  * 2. If the original argument vector was longer than the one we
  *    want to end with, it's up to the caller to set c->argc and
  *    free the no longer used objects on c->argv. */
+/*
+ * 重置客户端请求命令中的一个参数
+ */
 void rewriteClientCommandArgument(redisClient *c, int i, robj *newval) {
     robj *oldval;
 
@@ -1678,6 +1772,9 @@ void rewriteClientCommandArgument(redisClient *c, int i, robj *newval) {
  * Note: this function is very fast so can be called as many time as
  * the caller wishes. The main usage of this function currently is
  * enforcing the client output length limits. */
+/*
+ * 获取缓存Clien reply 数据的空间大小
+ */
 unsigned long getClientOutputBufferMemoryUsage(redisClient *c) {
     unsigned long list_item_size = sizeof(listNode)+sizeof(robj);
 
@@ -1692,6 +1789,9 @@ unsigned long getClientOutputBufferMemoryUsage(redisClient *c) {
  * REDIS_CLIENT_TYPE_SLAVE  -> Slave or client executing MONITOR command
  * REDIS_CLIENT_TYPE_PUBSUB -> Client subscribed to Pub/Sub channels
  */
+/*
+ * 获取客户端的类型
+ */
 int getClientType(redisClient *c) {
     if ((c->flags & REDIS_SLAVE) && !(c->flags & REDIS_MONITOR))
         return REDIS_CLIENT_TYPE_SLAVE;
@@ -1700,6 +1800,9 @@ int getClientType(redisClient *c) {
     return REDIS_CLIENT_TYPE_NORMAL;
 }
 
+/*
+ * 获取客户端类型名获取类型
+ */
 int getClientTypeByName(char *name) {
     if (!strcasecmp(name,"normal")) return REDIS_CLIENT_TYPE_NORMAL;
     else if (!strcasecmp(name,"slave")) return REDIS_CLIENT_TYPE_SLAVE;
@@ -1707,6 +1810,9 @@ int getClientTypeByName(char *name) {
     else return -1;
 }
 
+/*
+ * 根据类型获取类型名
+ */
 char *getClientTypeName(int class) {
     switch(class) {
     case REDIS_CLIENT_TYPE_NORMAL: return "normal";
@@ -1722,6 +1828,9 @@ char *getClientTypeName(int class) {
  *
  * Return value: non-zero if the client reached the soft or the hard limit.
  *               Otherwise zero is returned. */
+/*
+ * 检查客户端的发送缓冲区是否超过限制
+ */
 int checkClientOutputBufferLimits(redisClient *c) {
     int soft = 0, hard = 0, class;
     unsigned long used_mem = getClientOutputBufferMemoryUsage(c);
@@ -1763,6 +1872,9 @@ int checkClientOutputBufferLimits(redisClient *c) {
  * Note: we need to close the client asynchronously because this function is
  * called from contexts where the client can't be freed safely, i.e. from the
  * lower level functions pushing data inside the client output buffers. */
+/*
+ * 当客户端的发送缓冲区超过限制，异步关闭客户端
+ */
 void asyncCloseClientOnOutputBufferLimitReached(redisClient *c) {
     redisAssert(c->reply_bytes < ULONG_MAX-(1024*64));
     if (c->reply_bytes == 0 || c->flags & REDIS_CLOSE_ASAP) return;
@@ -1777,6 +1889,9 @@ void asyncCloseClientOnOutputBufferLimitReached(redisClient *c) {
 
 /* Helper function used by freeMemoryIfNeeded() in order to flush slaves
  * output buffers without returning control to the event loop. */
+/*
+ * 清空 Slave 节点的发送缓冲区数据
+ */
 void flushSlavesOutputBuffers(void) {
     listIter li;
     listNode *ln;
@@ -1819,6 +1934,9 @@ void flushSlavesOutputBuffers(void) {
  * time left for the previous duration. However if the duration is smaller
  * than the time left for the previous pause, no change is made to the
  * left duration. */
+/*
+ * 暂停客户端
+ */
 void pauseClients(mstime_t end) {
     if (!server.clients_paused || end > server.clients_pause_end_time)
         server.clients_pause_end_time = end;
@@ -1827,6 +1945,9 @@ void pauseClients(mstime_t end) {
 
 /* Return non-zero if clients are currently paused. As a side effect the
  * function checks if the pause time was reached and clear it. */
+/*
+ * 客户端是否暂停
+ */
 int clientsArePaused(void) {
     if (server.clients_paused &&
         server.clients_pause_end_time < server.mstime)
@@ -1865,6 +1986,9 @@ int clientsArePaused(void) {
  * write, close sequence needed to serve a client.
  *
  * The function returns the total number of events processed. */
+/*
+ * 以阻塞方式处理一些事件
+ */
 int processEventsWhileBlocked(void) {
     int iterations = 4; /* See the function top-comment. */
     int count = 0;
