@@ -539,6 +539,7 @@ typedef struct redisClient {
     int argc;
     robj **argv;
     struct redisCommand *cmd, *lastcmd;
+    /*协议类型*/
     int reqtype;
     /*multi bulk 参数的个数*/
     int multibulklen;       /* number of multi bulk arguments left to read */
@@ -546,7 +547,9 @@ typedef struct redisClient {
     long bulklen;           /* length of bulk argument in multi bulk request */
     /*回复缓存链表*/
     list *reply;
+    /*reply list 中所有对象的总大小*/
     unsigned long reply_bytes; /* Tot bytes of objects in reply list */
+    /*当前缓存区中已经发送的数据量大小*/
     int sentlen;            /* Amount of bytes already sent in the current
                                buffer or object being sent. */
     /*Client创建时间*/
@@ -582,6 +585,7 @@ typedef struct redisClient {
     sds peerid;             /* Cached peer ID. */
 
     /* Response buffer */
+    /*缓冲区当前缓存的数据大小*/
     int bufpos;
     char buf[REDIS_REPLY_CHUNK_BYTES];
 } redisClient;

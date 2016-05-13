@@ -501,6 +501,7 @@ void setDeferredMultiBulkLength(redisClient *c, void *node, long length) {
         next = listNodeValue(ln->next);
 
         /* Only glue when the next node is non-NULL (an sds in this case) */
+        /*如果下一个节点存在，则合并节点*/
         if (next->ptr != NULL) {
             c->reply_bytes -= zmalloc_size_sds(len->ptr);
             c->reply_bytes -= getStringObjectSdsUsedMemory(next);
