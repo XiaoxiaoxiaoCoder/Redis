@@ -36,6 +36,9 @@
 #define strtold(a,b) ((long double)strtod((a),(b)))
 #endif
 
+/*
+ * 创建一个 Object， 指定类型为 type， 数据域为 ptr
+ */
 robj *createObject(int type, void *ptr) {
     robj *o = zmalloc(sizeof(*o));
     o->type = type;
@@ -50,6 +53,9 @@ robj *createObject(int type, void *ptr) {
 
 /* Create a string object with encoding REDIS_ENCODING_RAW, that is a plain
  * string object where o->ptr points to a proper sds string. */
+/*
+ * 创建一个 String Object
+ */
 robj *createRawStringObject(char *ptr, size_t len) {
     return createObject(REDIS_STRING,sdsnewlen(ptr,len));
 }
@@ -57,19 +63,22 @@ robj *createRawStringObject(char *ptr, size_t len) {
 /* Create a string object with encoding REDIS_ENCODING_EMBSTR, that is
  * an object where the sds string is actually an unmodifiable string
  * allocated in the same chunk as the object itself. */
+/*
+ * 创建一个 Embedded 编码的 String object
+ */
 robj *createEmbeddedStringObject(char *ptr, size_t len) {
     robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr)+len+1);
-    struct sdshdr *sh = (void*)(o+1);
+    struct sdshdr *sh = (void*)(o+1);           //因为 o 为robj 类型，+1 实际偏移为 sizeof(robj)
 
     o->type = REDIS_STRING;
     o->encoding = REDIS_ENCODING_EMBSTR;
-    o->ptr = sh+1;
+    o->ptr = sh+1;                              //实际指向为 sds
     o->refcount = 1;
     o->lru = LRU_CLOCK();
 
     sh->len = len;
     sh->free = 0;
-    if (ptr) {
+    if (ptr) {                                  //拷贝数据
         memcpy(sh->buf,ptr,len);
         sh->buf[len] = '\0';
     } else {
@@ -85,6 +94,9 @@ robj *createEmbeddedStringObject(char *ptr, size_t len) {
  * The current limit of 39 is chosen so that the biggest string object
  * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
 #define REDIS_ENCODING_EMBSTR_SIZE_LIMIT 39
+/*
+ * 创建一个 String Object，根据数据大小，选择编码方式
+ */
 robj *createStringObject(char *ptr, size_t len) {
     if (len <= REDIS_ENCODING_EMBSTR_SIZE_LIMIT)
         return createEmbeddedStringObject(ptr,len);
@@ -92,8 +104,12 @@ robj *createStringObject(char *ptr, size_t len) {
         return createRawStringObject(ptr,len);
 }
 
+/*
+ * 根据 long long 数值创建一个String Object
+ */
 robj *createStringObjectFromLongLong(long long value) {
     robj *o;
+    /*共享对象*/
     if (value >= 0 && value < REDIS_SHARED_INTEGERS) {
         incrRefCount(shared.integers[value]);
         o = shared.integers[value];
@@ -159,6 +175,9 @@ robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
  * will always result in a fresh object that is unshared (refcount == 1).
  *
  * The resulting object always has refcount set to 1. */
+/*
+ * 拷贝一个String对象
+ */
 robj *dupStringObject(robj *o) {
     robj *d;
 
@@ -180,6 +199,9 @@ robj *dupStringObject(robj *o) {
     }
 }
 
+/*
+ * 创建一个 List Object
+ */
 robj *createListObject(void) {
     list *l = listCreate();
     robj *o = createObject(REDIS_LIST,l);
@@ -188,6 +210,9 @@ robj *createListObject(void) {
     return o;
 }
 
+/*
+ * 创建一个 Ziplist Object 
+ */
 robj *createZiplistObject(void) {
     unsigned char *zl = ziplistNew();
     robj *o = createObject(REDIS_LIST,zl);
@@ -195,6 +220,9 @@ robj *createZiplistObject(void) {
     return o;
 }
 
+/*
+ * 创建一个 Set Object
+ */
 robj *createSetObject(void) {
     dict *d = dictCreate(&setDictType,NULL);
     robj *o = createObject(REDIS_SET,d);
@@ -202,6 +230,9 @@ robj *createSetObject(void) {
     return o;
 }
 
+/*
+ * 创建一个 IntSet Object
+ */
 robj *createIntsetObject(void) {
     intset *is = intsetNew();
     robj *o = createObject(REDIS_SET,is);
@@ -209,6 +240,9 @@ robj *createIntsetObject(void) {
     return o;
 }
 
+/*
+ * 创建一个 Hash Object
+ */
 robj *createHashObject(void) {
     unsigned char *zl = ziplistNew();
     robj *o = createObject(REDIS_HASH, zl);
@@ -216,6 +250,9 @@ robj *createHashObject(void) {
     return o;
 }
 
+/*
+ * 创建一个 Zset Object
+ */
 robj *createZsetObject(void) {
     zset *zs = zmalloc(sizeof(*zs));
     robj *o;
@@ -227,6 +264,9 @@ robj *createZsetObject(void) {
     return o;
 }
 
+/*
+ * 创建一个 Ziplist 编码的 Zset Object
+ */
 robj *createZsetZiplistObject(void) {
     unsigned char *zl = ziplistNew();
     robj *o = createObject(REDIS_ZSET,zl);
@@ -234,12 +274,18 @@ robj *createZsetZiplistObject(void) {
     return o;
 }
 
+/*
+ * 释放 String Object
+ */
 void freeStringObject(robj *o) {
     if (o->encoding == REDIS_ENCODING_RAW) {
         sdsfree(o->ptr);
     }
 }
 
+/*
+ * 释放 List Object
+ */
 void freeListObject(robj *o) {
     switch (o->encoding) {
     case REDIS_ENCODING_LINKEDLIST:
@@ -253,6 +299,9 @@ void freeListObject(robj *o) {
     }
 }
 
+/*
+ * 释放 Set  Object
+ */
 void freeSetObject(robj *o) {
     switch (o->encoding) {
     case REDIS_ENCODING_HT:
@@ -266,6 +315,9 @@ void freeSetObject(robj *o) {
     }
 }
 
+/*
+ * 释放 Zset Object
+ */
 void freeZsetObject(robj *o) {
     zset *zs;
     switch (o->encoding) {
@@ -283,6 +335,9 @@ void freeZsetObject(robj *o) {
     }
 }
 
+/*
+ * 释放 Hash Object
+ */
 void freeHashObject(robj *o) {
     switch (o->encoding) {
     case REDIS_ENCODING_HT:
@@ -297,10 +352,16 @@ void freeHashObject(robj *o) {
     }
 }
 
+/*
+ * 增加引用次数
+ */
 void incrRefCount(robj *o) {
     o->refcount++;
 }
 
+/*
+ * 减少引用次数,引用次数为0时，释放对象
+ */
 void decrRefCount(robj *o) {
     if (o->refcount <= 0) redisPanic("decrRefCount against refcount <= 0");
     if (o->refcount == 1) {
@@ -337,11 +398,17 @@ void decrRefCountVoid(void *o) {
  *    functionThatWillIncrementRefCount(obj);
  *    decrRefCount(obj);
  */
+/*
+ * 重置 Object 引用次数
+ */
 robj *resetRefCount(robj *obj) {
     obj->refcount = 0;
     return obj;
 }
 
+/*
+ * 检查 Object 的类型是否为指定类型
+ */
 int checkType(redisClient *c, robj *o, int type) {
     if (o->type != type) {
         addReply(c,shared.wrongtypeerr);
@@ -350,6 +417,9 @@ int checkType(redisClient *c, robj *o, int type) {
     return 0;
 }
 
+/*
+ * Objec 对象是否表示位一个 long long 数值
+ */
 int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
     redisAssertWithInfo(NULL,o,o->type == REDIS_STRING);
     if (o->encoding == REDIS_ENCODING_INT) {
@@ -361,6 +431,9 @@ int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
 }
 
 /* Try to encode a string object in order to save space */
+/*
+ * 尝试编码一个 string object 节省空间
+ */
 robj *tryObjectEncoding(robj *o) {
     long value;
     sds s = o->ptr;
@@ -386,6 +459,7 @@ robj *tryObjectEncoding(robj *o) {
      * Note that we are sure that a string larger than 21 chars is not
      * representable as a 32 nor 64 bit integer. */
     len = sdslen(s);
+    /*检查是否可以编码为一个整型*/
     if (len <= 21 && string2l(s,len,&value)) {
         /* This object is encodable as a long. Try to use a shared object.
          * Note that we avoid using shared integers when maxmemory is used
@@ -412,6 +486,7 @@ robj *tryObjectEncoding(robj *o) {
      * try the EMBSTR encoding which is more efficient.
      * In this representation the object and the SDS string are allocated
      * in the same chunk of memory to save space and cache misses. */
+    /*从 RAW 编码改为 EMB 编码*/
     if (len <= REDIS_ENCODING_EMBSTR_SIZE_LIMIT) {
         robj *emb;
 
@@ -430,6 +505,7 @@ robj *tryObjectEncoding(robj *o) {
      * We do that only for relatively large strings as this branch
      * is only entered if the length of the string is greater than
      * REDIS_ENCODING_EMBSTR_SIZE_LIMIT. */
+    /*释放空闲空间*/
     if (o->encoding == REDIS_ENCODING_RAW &&
         sdsavail(s) > len/10)
     {
@@ -442,6 +518,9 @@ robj *tryObjectEncoding(robj *o) {
 
 /* Get a decoded version of an encoded object (returned as a new object).
  * If the object is already raw-encoded just increment the ref count. */
+/*
+ * 获取一个编码的新 Object
+ */
 robj *getDecodedObject(robj *o) {
     robj *dec;
 
@@ -471,6 +550,9 @@ robj *getDecodedObject(robj *o) {
 #define REDIS_COMPARE_BINARY (1<<0)
 #define REDIS_COMPARE_COLL (1<<1)
 
+/*
+ * 比较两个String Object
+ */
 int compareStringObjectsWithFlags(robj *a, robj *b, int flags) {
     redisAssertWithInfo(NULL,a,a->type == REDIS_STRING && b->type == REDIS_STRING);
     char bufa[128], bufb[128], *astr, *bstr;
@@ -517,6 +599,9 @@ int collateStringObjects(robj *a, robj *b) {
  * point of view of a string comparison, otherwise 0 is returned. Note that
  * this function is faster then checking for (compareStringObject(a,b) == 0)
  * because it can perform some more optimization. */
+/*
+ * 判断两个String Object 是否相等
+ */
 int equalStringObjects(robj *a, robj *b) {
     if (a->encoding == REDIS_ENCODING_INT &&
         b->encoding == REDIS_ENCODING_INT){
@@ -528,6 +613,9 @@ int equalStringObjects(robj *a, robj *b) {
     }
 }
 
+/*
+ * 获取 string Object 的长度
+ */
 size_t stringObjectLen(robj *o) {
     redisAssertWithInfo(NULL,o,o->type == REDIS_STRING);
     if (sdsEncodedObject(o)) {
@@ -539,6 +627,9 @@ size_t stringObjectLen(robj *o) {
     }
 }
 
+/*
+ * 从 String Object 中获取 Double 数值
+ */
 int getDoubleFromObject(robj *o, double *target) {
     double value;
     char *eptr;
@@ -567,6 +658,9 @@ int getDoubleFromObject(robj *o, double *target) {
     return REDIS_OK;
 }
 
+/*
+ * 从 String Object 中获取一个 Double 数值，如果失败则返回一个错误至Client Reply 中
+ */
 int getDoubleFromObjectOrReply(redisClient *c, robj *o, double *target, const char *msg) {
     double value;
     if (getDoubleFromObject(o, &value) != REDIS_OK) {
@@ -581,6 +675,9 @@ int getDoubleFromObjectOrReply(redisClient *c, robj *o, double *target, const ch
     return REDIS_OK;
 }
 
+/*
+ * 获取一个 Long double 从 string object
+ */
 int getLongDoubleFromObject(robj *o, long double *target) {
     long double value;
     char *eptr;
@@ -605,6 +702,9 @@ int getLongDoubleFromObject(robj *o, long double *target) {
     return REDIS_OK;
 }
 
+/*
+ * 获取一个 long double 从 string object，如果失败，则添加一个错误信息至 Client Reply
+ */
 int getLongDoubleFromObjectOrReply(redisClient *c, robj *o, long double *target, const char *msg) {
     long double value;
     if (getLongDoubleFromObject(o, &value) != REDIS_OK) {
@@ -619,6 +719,9 @@ int getLongDoubleFromObjectOrReply(redisClient *c, robj *o, long double *target,
     return REDIS_OK;
 }
 
+/*
+ * 获取一个 long long 值，从string object
+ */
 int getLongLongFromObject(robj *o, long long *target) {
     long long value;
     char *eptr;
@@ -643,6 +746,9 @@ int getLongLongFromObject(robj *o, long long *target) {
     return REDIS_OK;
 }
 
+/*
+ * 获取一个 long long 从 string object，如果失败，则添加一个错误信息至 Client Reply
+ */
 int getLongLongFromObjectOrReply(redisClient *c, robj *o, long long *target, const char *msg) {
     long long value;
     if (getLongLongFromObject(o, &value) != REDIS_OK) {
@@ -657,6 +763,9 @@ int getLongLongFromObjectOrReply(redisClient *c, robj *o, long long *target, con
     return REDIS_OK;
 }
 
+/*
+ * 获取一个 long 从 string object，如果失败，则添加一个错误信息至 Client Reply
+ */
 int getLongFromObjectOrReply(redisClient *c, robj *o, long *target, const char *msg) {
     long long value;
 
@@ -673,6 +782,9 @@ int getLongFromObjectOrReply(redisClient *c, robj *o, long *target, const char *
     return REDIS_OK;
 }
 
+/*
+ * 返回编码方式的字符串描述
+ */
 char *strEncoding(int encoding) {
     switch(encoding) {
     case REDIS_ENCODING_RAW: return "raw";
@@ -689,6 +801,9 @@ char *strEncoding(int encoding) {
 
 /* Given an object returns the min number of milliseconds the object was never
  * requested, using an approximated LRU algorithm. */
+/*
+ * 给定一个 Object， 返回该 Object 未访问的空闲时间
+ */
 unsigned long long estimateObjectIdleTime(robj *o) {
     unsigned long long lruclock = LRU_CLOCK();
     if (lruclock >= o->lru) {
@@ -701,6 +816,9 @@ unsigned long long estimateObjectIdleTime(robj *o) {
 
 /* This is a helper function for the OBJECT command. We need to lookup keys
  * without any modification of LRU or other parameters. */
+/*
+ * 查找一个对象
+ */
 robj *objectCommandLookup(redisClient *c, robj *key) {
     dictEntry *de;
 
@@ -708,6 +826,9 @@ robj *objectCommandLookup(redisClient *c, robj *key) {
     return (robj*) dictGetVal(de);
 }
 
+/*
+ * 查找到对象，则返回对象，否则返回一个回复
+ */
 robj *objectCommandLookupOrReply(redisClient *c, robj *key, robj *reply) {
     robj *o = objectCommandLookup(c,key);
 
@@ -717,22 +838,25 @@ robj *objectCommandLookupOrReply(redisClient *c, robj *key, robj *reply) {
 
 /* Object command allows to inspect the internals of an Redis Object.
  * Usage: OBJECT <refcount|encoding|idletime> <key> */
+/*
+ * Object Command 命令
+ */
 void objectCommand(redisClient *c) {
     robj *o;
 
-    if (!strcasecmp(c->argv[1]->ptr,"refcount") && c->argc == 3) {
+    if (!strcasecmp(c->argv[1]->ptr,"refcount") && c->argc == 3) {              //返回指定对象的引用次数
         if ((o = objectCommandLookupOrReply(c,c->argv[2],shared.nullbulk))
                 == NULL) return;
         addReplyLongLong(c,o->refcount);
-    } else if (!strcasecmp(c->argv[1]->ptr,"encoding") && c->argc == 3) {
+    } else if (!strcasecmp(c->argv[1]->ptr,"encoding") && c->argc == 3) {       //返回指定对象的编码方式
         if ((o = objectCommandLookupOrReply(c,c->argv[2],shared.nullbulk))
                 == NULL) return;
         addReplyBulkCString(c,strEncoding(o->encoding));
-    } else if (!strcasecmp(c->argv[1]->ptr,"idletime") && c->argc == 3) {
+    } else if (!strcasecmp(c->argv[1]->ptr,"idletime") && c->argc == 3) {       //返回指定对象的空闲时间
         if ((o = objectCommandLookupOrReply(c,c->argv[2],shared.nullbulk))
                 == NULL) return;
         addReplyLongLong(c,estimateObjectIdleTime(o)/1000);
-    } else {
+    } else {                                                                    //返回语法错误
         addReplyError(c,"Syntax error. Try OBJECT (refcount|encoding|idletime)");
     }
 }

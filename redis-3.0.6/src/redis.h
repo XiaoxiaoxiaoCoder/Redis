@@ -425,10 +425,15 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REDIS_LRU_CLOCK_MAX ((1<<REDIS_LRU_BITS)-1) /* Max value of obj->lru */
 #define REDIS_LRU_CLOCK_RESOLUTION 1000 /* LRU clock resolution in ms */
 typedef struct redisObject {
+    /*数据类型*/
     unsigned type:4;
+    /*编码方式*/
     unsigned encoding:4;
+    /*最近访问时间*/
     unsigned lru:REDIS_LRU_BITS; /* lru time (relative to server.lruclock) */
+    /*引用次数*/
     int refcount;
+    /*数据域*/
     void *ptr;
 } robj;
 
@@ -1594,5 +1599,3 @@ void redisLogHexDump(int level, char *descr, void *value, size_t len);
     printf("-- MARK %s:%d --\n", __FILE__, __LINE__)
 
 #endif
-    回复缓存链表
-    最近的活跃时间
