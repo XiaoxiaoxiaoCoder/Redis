@@ -73,6 +73,10 @@
  * Note that if the timeout is zero (usually from the point of view of
  * commands API this means no timeout) the value stored into 'timeout'
  * is zero. */
+/*
+ * 从一个 object 中获取一个超时时间并保存至 timeout,超时时间以毫秒形式保存
+ * 如果获取失败，则返回一个错误信息
+ */
 int getTimeoutFromObjectOrReply(redisClient *c, robj *object, mstime_t *timeout, int unit) {
     long long tval;
 
@@ -97,6 +101,9 @@ int getTimeoutFromObjectOrReply(redisClient *c, robj *object, mstime_t *timeout,
 /* Block a client for the specific operation type. Once the REDIS_BLOCKED
  * flag is set client query buffer is not longer processed, but accumulated,
  * and will be processed when the client is unblocked. */
+/*
+ * 为了执行一个特殊的操作，暂时阻塞住客户端
+ */
 void blockClient(redisClient *c, int btype) {
     c->flags |= REDIS_BLOCKED;
     c->btype = btype;
@@ -106,6 +113,9 @@ void blockClient(redisClient *c, int btype) {
 /* This function is called in the beforeSleep() function of the event loop
  * in order to process the pending input buffer of clients that were
  * unblocked after a blocking operation. */
+/*
+ * 当一个 client 从 blocked 状态转变为 block 状态时，处理转变的客户端的Input数据
+ */
 void processUnblockedClients(void) {
     listNode *ln;
     redisClient *c;
@@ -128,6 +138,9 @@ void processUnblockedClients(void) {
 
 /* Unblock a client calling the right function depending on the kind
  * of operation the client is blocking for. */
+/*
+ * 将Client由 blocked 状态转变为 unblocked 状态
+ */
 void unblockClient(redisClient *c) {
     if (c->btype == REDIS_BLOCKED_LIST) {
         unblockClientWaitingData(c);
@@ -164,6 +177,9 @@ void replyToBlockedClientTimedOut(redisClient *c) {
  *
  * The semantics is to send an -UNBLOCKED error to the client, disconnecting
  * it at the same time. */
+/*
+ * 断开所有 Block clients
+ */
 void disconnectAllBlockedClients(void) {
     listNode *ln;
     listIter li;

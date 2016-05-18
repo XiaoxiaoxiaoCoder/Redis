@@ -581,6 +581,7 @@ typedef struct redisClient {
     int slave_capa;         /* Slave capabilities: SLAVE_CAPA_* bitwise OR. */
     /*事物命令的状态*/
     multiState mstate;      /* MULTI/EXEC state */
+    /*阻塞的类型*/
     int btype;              /* Type of blocking op if REDIS_BLOCKED. */
     blockingState bpop;     /* blocking state */
     long long woff;         /* Last write global replication offset. */
@@ -733,9 +734,12 @@ struct redisServer {
     time_t stat_starttime;          /* Server start time */
     long long stat_numcommands;     /* Number of processed commands */
     long long stat_numconnections;  /* Number of connections received */
+    /*过期淘汰的key的数量统计*/
     long long stat_expiredkeys;     /* Number of expired keys */
     long long stat_evictedkeys;     /* Number of evicted keys (maxmemory) */
+    /*key命中成功次数*/
     long long stat_keyspace_hits;   /* Number of successful lookups of keys */
+    /*key命中失败次数*/
     long long stat_keyspace_misses; /* Number of failed lookups of keys */
     size_t stat_peak_memory;        /* Max used memory record */
     long long stat_fork_time;       /* Time needed to perform latest fork() */
@@ -959,8 +963,11 @@ struct redisCommand {
      * Used for Redis Cluster redirect. */
     redisGetKeysProc *getkeys_proc;
     /* What keys should be loaded in background when calling this command? */
+    /*第一个key的下标*/
     int firstkey; /* The first argument that's a key (0 = no keys) */
+    /*最后一个key的下标,如果是负数，则从尾部逆向*/
     int lastkey;  /* The last argument that's a key */
+    /*第一个key与下一个key之前的步长*/
     int keystep;  /* The step between first and last key */
     long long microseconds, calls;
 };
