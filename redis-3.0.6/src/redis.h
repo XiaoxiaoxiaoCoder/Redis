@@ -473,7 +473,15 @@ struct evictionPoolEntry {
 typedef struct redisDb {
     dict *dict;                 /* The keyspace for this DB */
     dict *expires;              /* Timeout of keys with a timeout set */
+    /*
+     * 等待数据的keys table
+     * table key为等待数据的 key
+     * value 为等待该key数据的客户端链表
+     */
     dict *blocking_keys;        /* Keys with clients waiting for data (BLPOP) */
+    /*
+     * 因新数据插入处于OK的key集合
+     */
     dict *ready_keys;           /* Blocked keys that received a PUSH */
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
     struct evictionPoolEntry *eviction_pool;    /* Eviction pool of keys */
@@ -499,12 +507,17 @@ typedef struct multiState {
  * The fields used depend on client->btype. */
 typedef struct blockingState {
     /* Generic fields. */
+    /*阻塞的超时时间*/
     mstime_t timeout;       /* Blocking operation timeout. If UNIX current time
                              * is > timeout then the operation timed out. */
 
     /* REDIS_BLOCK_LIST */
+    /*
+     * 客户端等待keys table，等待这些key的数据结束阻塞操作
+     */
     dict *keys;             /* The keys we are waiting to terminate a blocking
                              * operation such as BLPOP. Otherwise NULL. */
+    /*需要接收数据的key*/
     robj *target;           /* The key that should receive the element,
                              * for BRPOPLPUSH. */
 
@@ -583,6 +596,7 @@ typedef struct redisClient {
     multiState mstate;      /* MULTI/EXEC state */
     /*阻塞的类型*/
     int btype;              /* Type of blocking op if REDIS_BLOCKED. */
+    /*阻塞状态*/
     blockingState bpop;     /* blocking state */
     long long woff;         /* Last write global replication offset. */
     list *watched_keys;     /* Keys WATCHED for MULTI/EXEC CAS */
@@ -889,6 +903,9 @@ struct redisServer {
     /* Blocked clients */
     unsigned int bpop_blocked_clients; /* Number of clients blocked by lists */
     list *unblocked_clients; /* list of clients to unblock before next loop */
+    /*
+     *因插入数据OK的keys数据集合
+     */
     list *ready_keys;        /* List of readyList structures for BLPOP & co */
     /* Sort parameters - qsort_r() is only available under BSD so we
      * have to take this state global, in order to pass it to sortCompare() */
@@ -991,17 +1008,30 @@ typedef struct _redisSortOperation {
 } redisSortOperation;
 
 /* Structure to hold list iteration abstraction. */
+/*
+ * 链表迭代器
+ */
 typedef struct {
+    /*迭代的链表对象*/
     robj *subject;
+    /*链表的编码方式*/
     unsigned char encoding;
+    /*迭代方向*/
     unsigned char direction; /* Iteration direction */
+    /*ziplist 编码形式下,当前迭代的节点*/
     unsigned char *zi;
+    /*双链表,当前迭代的节点*/
     listNode *ln;
 } listTypeIterator;
 
 /* Structure for an entry while iterating over a list. */
+/*
+ * 迭代器当前迭代的节点
+ */
 typedef struct {
+    /*迭代器*/
     listTypeIterator *li;
+    /*节点指针*/
     unsigned char *zi;  /* Entry in ziplist */
     listNode *ln;       /* Entry in linked list */
 } listTypeEntry;
