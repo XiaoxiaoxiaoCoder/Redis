@@ -933,6 +933,7 @@ void blockForKeys(redisClient *c, robj **keys, int numkeys, mstime_t timeout, ro
             int retval;
 
             /* For every key we take a list of clients blocked for it */
+            /*针对每个key，用一个链表存储因为该key而阻塞的客户端*/
             l = listCreate();
             retval = dictAdd(c->db->blocking_keys,keys[j],l);
             incrRefCount(keys[j]);
@@ -1117,11 +1118,11 @@ void handleClientsBlockedOnLists(void) {
 
             /* First of all remove this key from db->ready_keys so that
              * we can safely call signalListAsReady() against this key. */
-            dictDelete(rl->db->ready_keys,rl->key);             //删除该ready key
+            dictDelete(rl->db->ready_keys,rl->key);             //从key所在的DB中删除该ready key
 
             /* If the key exists and it's a list, serve blocked clients
              * with data. */
-            robj *o = lookupKeyWrite(rl->db,rl->key);           //可以是否存在类型也需要OK
+            robj *o = lookupKeyWrite(rl->db,rl->key);           //Key是否存在类型也需要OK
             if (o != NULL && o->type == REDIS_LIST) {
                 dictEntry *de;
 
