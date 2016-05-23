@@ -1048,12 +1048,17 @@ typedef struct {
  * hashes involves both fields and values. Because it is possible that
  * not both are required, store pointers in the iterator to avoid
  * unnecessary memory allocation for fields/values. */
+/*
+ * hash 迭代器
+ */
 typedef struct {
+    /*hash对象*/
     robj *subject;
+    /*编码方式*/
     int encoding;
-
+    /*ziplist 编码方式存储 field value的指针*/
     unsigned char *fptr, *vptr;
-
+    /*dict 编码方式的迭代器*/
     dictIterator *di;
     dictEntry *de;
 } hashTypeIterator;
