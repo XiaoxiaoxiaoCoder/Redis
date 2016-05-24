@@ -526,7 +526,9 @@ void hashTypeConvert(robj *o, int enc) {
 
 /*
  * hset 命令， 设置一对 field value
- * 如果是新增发挥 0，如果是更新则返回 1
+ * 如果是新增返回 1，如果是更新则返回 0
+ *
+ * HSET hashKey field value
  */
 void hsetCommand(redisClient *c) {
     int update;
@@ -544,6 +546,8 @@ void hsetCommand(redisClient *c) {
 
 /*
  * hsetnx 命令,设置一对 field value，如果 field 存在，则设置失败返回 0, 否则成功返回 1
+ *
+ * HSETNX  hashKey field value
  */
 void hsetnxCommand(redisClient *c) {
     robj *o;
@@ -564,6 +568,8 @@ void hsetnxCommand(redisClient *c) {
 
 /*
  * hmset 命令，设置多对 filed value, 成功返回 OK
+ *
+ * HMSET hashKey f1 v1 [f2 v2 ...]
  */
 void hmsetCommand(redisClient *c) {
     int i;
@@ -588,6 +594,8 @@ void hmsetCommand(redisClient *c) {
 
 /*
  * hincrby 命令， 给指定 field的value 加上指定数值
+ *
+ * HINCRBY hashkey field data
  */
 void hincrbyCommand(redisClient *c) {
     long long value, incr, oldvalue;
@@ -627,6 +635,8 @@ void hincrbyCommand(redisClient *c) {
 
 /*
  * hincrbyfloat 命令，给指定 field 的 value 加上指定的数值(浮点数)
+ *
+ * HINCRBYFLOAT hashKey field data
  */
 void hincrbyfloatCommand(redisClient *c) {
     double long value, incr;
@@ -710,6 +720,8 @@ static void addHashFieldToReply(redisClient *c, robj *o, robj *field) {
 /*
  * hget 命令, 获取指定 key 的 hash 中 field 对应的 value
  * 如果不存在，则返回NULL,否则返回对应的 value
+ *
+ * HGET hashkey field
  */
 void hgetCommand(redisClient *c) {
     robj *o;
@@ -722,6 +734,8 @@ void hgetCommand(redisClient *c) {
 
 /*
  * hmget 命令，获取指定 key 的 hash 中多个field对应的value
+ *
+ * HMGET hashKey field1 [field2 ...]
  */
 void hmgetCommand(redisClient *c) {
     robj *o;
@@ -744,6 +758,8 @@ void hmgetCommand(redisClient *c) {
 /*
  * hdel 命令， 删除指定 field
  * 返回删除的 field 个数
+ *
+ * HDEL hashKey field1 [field2 ...]
  */
 void hdelCommand(redisClient *c) {
     robj *o;
@@ -775,6 +791,8 @@ void hdelCommand(redisClient *c) {
 
 /*
  * hlen 命令，返回指定 hash 的元素个数
+ *
+ * HLEN hahsKey
  */
 void hlenCommand(redisClient *c) {
     robj *o;
@@ -847,6 +865,8 @@ void genericHgetallCommand(redisClient *c, int flags) {
 
 /*
  * hkeys 命令，返回所有 field 值
+ *
+ * HKEYS hashkey
  */
 void hkeysCommand(redisClient *c) {
     genericHgetallCommand(c,REDIS_HASH_KEY);
@@ -854,6 +874,8 @@ void hkeysCommand(redisClient *c) {
 
 /*
  * hvals 命令，返回所有 val 值
+ *
+ * HVALS hashkey
  */
 void hvalsCommand(redisClient *c) {
     genericHgetallCommand(c,REDIS_HASH_VALUE);
@@ -861,6 +883,8 @@ void hvalsCommand(redisClient *c) {
 
 /*
  * hgeall 命令， 返回所有 field-value 值
+ *
+ * HGETALL hashkey
  */
 void hgetallCommand(redisClient *c) {
     genericHgetallCommand(c,REDIS_HASH_KEY|REDIS_HASH_VALUE);
@@ -868,6 +892,8 @@ void hgetallCommand(redisClient *c) {
 
 /*
  * hexists 命令，检查指定 field 是否存在
+ *
+ * hexists hashkey field
  */
 void hexistsCommand(redisClient *c) {
     robj *o;
@@ -879,6 +905,8 @@ void hexistsCommand(redisClient *c) {
 
 /*
  * hscan 命令， scan 指定 key 的hash中的field value 值
+ *
+ * HSCAN hashkey cursor
  */
 void hscanCommand(redisClient *c) {
     robj *o;
