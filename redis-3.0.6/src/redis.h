@@ -1026,7 +1026,7 @@ typedef struct {
 
 /* Structure for an entry while iterating over a list. */
 /*
- * 迭代器当前迭代的节点
+ * list迭代器当前迭代的节点
  */
 typedef struct {
     /*迭代器*/
@@ -1037,10 +1037,17 @@ typedef struct {
 } listTypeEntry;
 
 /* Structure to hold set iteration abstraction. */
+/*
+ * set 集合迭代器
+ */
 typedef struct {
+    /*set 对象*/
     robj *subject;
+    /*编码方式*/
     int encoding;
+    /*INTSET 编码方式的迭代*/
     int ii; /* intset iterator */
+    /*hashtable 编码方式的 迭代器*/
     dictIterator *di;
 } setTypeIterator;
 
