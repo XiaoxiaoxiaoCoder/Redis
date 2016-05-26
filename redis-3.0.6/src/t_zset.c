@@ -55,6 +55,9 @@
 static int zslLexValueGteMin(robj *value, zlexrangespec *spec);
 static int zslLexValueLteMax(robj *value, zlexrangespec *spec);
 
+/*
+ * 创建一个跳跃表节点
+ */
 zskiplistNode *zslCreateNode(int level, double score, robj *obj) {
     zskiplistNode *zn = zmalloc(sizeof(*zn)+level*sizeof(struct zskiplistLevel));
     zn->score = score;
@@ -62,6 +65,9 @@ zskiplistNode *zslCreateNode(int level, double score, robj *obj) {
     return zn;
 }
 
+/*
+ * 创建一个跳跃表
+ */
 zskiplist *zslCreate(void) {
     int j;
     zskiplist *zsl;
@@ -79,11 +85,17 @@ zskiplist *zslCreate(void) {
     return zsl;
 }
 
+/*
+ * 释放一个跳跃表节点
+ */
 void zslFreeNode(zskiplistNode *node) {
     decrRefCount(node->obj);
     zfree(node);
 }
 
+/*
+ * 释放一个跳跃表
+ */
 void zslFree(zskiplist *zsl) {
     zskiplistNode *node = zsl->header->level[0].forward, *next;
 
@@ -100,6 +112,9 @@ void zslFree(zskiplist *zsl) {
  * The return value of this function is between 1 and ZSKIPLIST_MAXLEVEL
  * (both inclusive), with a powerlaw-alike distribution where higher
  * levels are less likely to be returned. */
+/*
+ * 随机返回一个 level, 以便插入一个新的跳跃表节点
+ */
 int zslRandomLevel(void) {
     int level = 1;
     while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
@@ -107,6 +122,9 @@ int zslRandomLevel(void) {
     return (level<ZSKIPLIST_MAXLEVEL) ? level : ZSKIPLIST_MAXLEVEL;
 }
 
+/*
+ * 插入一个新的节点，节点值为 obj，分值为 score
+ */
 zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned int rank[ZSKIPLIST_MAXLEVEL];
@@ -164,6 +182,9 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
 }
 
 /* Internal function used by zslDelete, zslDeleteByScore and zslDeleteByRank */
+/*
+ * 从跳跃表中删除一个节点
+ */
 void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
     int i;
     for (i = 0; i < zsl->level; i++) {
@@ -185,6 +206,9 @@ void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
 }
 
 /* Delete an element with matching score/object from the skiplist. */
+/*
+ * 从跳跃表中删除一个节点
+ */
 int zslDelete(zskiplist *zsl, double score, robj *obj) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     int i;
@@ -209,15 +233,24 @@ int zslDelete(zskiplist *zsl, double score, robj *obj) {
     return 0; /* not found */
 }
 
+/*
+ * 检查给定值是否小于给定范围值
+ */
 static int zslValueGteMin(double value, zrangespec *spec) {
     return spec->minex ? (value > spec->min) : (value >= spec->min);
 }
 
+/*
+ * 检查给定值是否大于给定范围值
+ */
 static int zslValueLteMax(double value, zrangespec *spec) {
     return spec->maxex ? (value < spec->max) : (value <= spec->max);
 }
 
 /* Returns if there is a part of the zset is in range. */
+/*
+ * 检查跳跃表的节点数值是否在一个范围内
+ */
 int zslIsInRange(zskiplist *zsl, zrangespec *range) {
     zskiplistNode *x;
 
@@ -236,6 +269,9 @@ int zslIsInRange(zskiplist *zsl, zrangespec *range) {
 
 /* Find the first node that is contained in the specified range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 返回在指定范围内的第一个节点，如果没任何节点属于这个范围，返回 NULL
+ */
 zskiplistNode *zslFirstInRange(zskiplist *zsl, zrangespec *range) {
     zskiplistNode *x;
     int i;
@@ -262,6 +298,9 @@ zskiplistNode *zslFirstInRange(zskiplist *zsl, zrangespec *range) {
 
 /* Find the last node that is contained in the specified range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 返回在指定范围内的最后一个节点，如果没有任何节点属于这个范围，返回 NULL
+ */
 zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec *range) {
     zskiplistNode *x;
     int i;
@@ -289,6 +328,9 @@ zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec *range) {
  * Min and max are inclusive, so a score >= min || score <= max is deleted.
  * Note that this function takes the reference to the hash table view of the
  * sorted set, in order to remove the elements from the hash table too. */
+/*
+ * 删除指定范围内的节点
+ */
 unsigned long zslDeleteRangeByScore(zskiplist *zsl, zrangespec *range, dict *dict) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned long removed = 0;
@@ -320,6 +362,9 @@ unsigned long zslDeleteRangeByScore(zskiplist *zsl, zrangespec *range, dict *dic
     return removed;
 }
 
+/*
+ * 将大于指定数值的节点删掉
+ */
 unsigned long zslDeleteRangeByLex(zskiplist *zsl, zlexrangespec *range, dict *dict) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned long removed = 0;
@@ -351,6 +396,9 @@ unsigned long zslDeleteRangeByLex(zskiplist *zsl, zlexrangespec *range, dict *di
 
 /* Delete all the elements with rank between start and end from the skiplist.
  * Start and end are inclusive. Note that start and end need to be 1-based */
+/*
+ * 删除指定 rank 区间的节点
+ */
 unsigned long zslDeleteRangeByRank(zskiplist *zsl, unsigned int start, unsigned int end, dict *dict) {
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned long traversed = 0, removed = 0;
@@ -383,6 +431,9 @@ unsigned long zslDeleteRangeByRank(zskiplist *zsl, unsigned int start, unsigned 
  * Returns 0 when the element cannot be found, rank otherwise.
  * Note that the rank is 1-based due to the span of zsl->header to the
  * first element. */
+/*
+ * 返回指定节点的 rank, 如果节点不存在，返回 0
+ */
 unsigned long zslGetRank(zskiplist *zsl, double score, robj *o) {
     zskiplistNode *x;
     unsigned long rank = 0;
@@ -407,6 +458,9 @@ unsigned long zslGetRank(zskiplist *zsl, double score, robj *o) {
 }
 
 /* Finds an element by its rank. The rank argument needs to be 1-based. */
+/*
+ * 返回指定 Rank 的节点
+ */
 zskiplistNode* zslGetElementByRank(zskiplist *zsl, unsigned long rank) {
     zskiplistNode *x;
     unsigned long traversed = 0;
@@ -427,6 +481,9 @@ zskiplistNode* zslGetElementByRank(zskiplist *zsl, unsigned long rank) {
 }
 
 /* Populate the rangespec according to the objects min and max. */
+/*
+ * 根据指定的区间值填充区间对象
+ */
 static int zslParseRange(robj *min, robj *max, zrangespec *spec) {
     char *eptr;
     spec->minex = spec->maxex = 0;
@@ -478,27 +535,30 @@ static int zslParseRange(robj *min, robj *max, zrangespec *spec) {
   *
   * If the string is not a valid range REDIS_ERR is returned, and the value
   * of *dest and *ex is undefined. */
+/*
+ * 解析区间值
+ */
 int zslParseLexRangeItem(robj *item, robj **dest, int *ex) {
     char *c = item->ptr;
 
     switch(c[0]) {
-    case '+':
+    case '+':                                       //MaxString
         if (c[1] != '\0') return REDIS_ERR;
         *ex = 0;
         *dest = shared.maxstring;
         incrRefCount(shared.maxstring);
         return REDIS_OK;
-    case '-':
+    case '-':                                       //MinString
         if (c[1] != '\0') return REDIS_ERR;
         *ex = 0;
         *dest = shared.minstring;
         incrRefCount(shared.minstring);
         return REDIS_OK;
-    case '(':
+    case '(':                                       //开区间
         *ex = 1;
         *dest = createStringObject(c+1,sdslen(c)-1);
         return REDIS_OK;
-    case '[':
+    case '[':                                       //闭区间
         *ex = 0;
         *dest = createStringObject(c+1,sdslen(c)-1);
         return REDIS_OK;
@@ -512,6 +572,9 @@ int zslParseLexRangeItem(robj *item, robj **dest, int *ex) {
  * Return REDIS_OK on success. On error REDIS_ERR is returned.
  * When OK is returned the structure must be freed with zslFreeLexRange(),
  * otherwise no release is needed. */
+/*
+ * 根据最大最小对象的值，填充区间对象
+ */
 static int zslParseLexRange(robj *min, robj *max, zlexrangespec *spec) {
     /* The range can't be valid if objects are integer encoded.
      * Every item must start with ( or [. */
@@ -531,6 +594,9 @@ static int zslParseLexRange(robj *min, robj *max, zlexrangespec *spec) {
 
 /* Free a lex range structure, must be called only after zelParseLexRange()
  * populated the structure with success (REDIS_OK returned). */
+/*
+ * 释放区间对象
+ */
 void zslFreeLexRange(zlexrangespec *spec) {
     decrRefCount(spec->min);
     decrRefCount(spec->max);
@@ -539,6 +605,9 @@ void zslFreeLexRange(zlexrangespec *spec) {
 /* This is just a wrapper to compareStringObjects() that is able to
  * handle shared.minstring and shared.maxstring as the equivalent of
  * -inf and +inf for strings */
+/*
+ * 比较String区间的正确性
+ */
 int compareStringObjectsForLexRange(robj *a, robj *b) {
     if (a == b) return 0; /* This makes sure that we handle inf,inf and
                              -inf,-inf ASAP. One special case less. */
@@ -547,12 +616,18 @@ int compareStringObjectsForLexRange(robj *a, robj *b) {
     return compareStringObjects(a,b);
 }
 
+/*
+ * 检查给定值是否大于给定区间的最小值
+ */
 static int zslLexValueGteMin(robj *value, zlexrangespec *spec) {
     return spec->minex ?
         (compareStringObjectsForLexRange(value,spec->min) > 0) :
         (compareStringObjectsForLexRange(value,spec->min) >= 0);
 }
 
+/*
+ * 检查给定值是否小于给定区间的最大值
+ */
 static int zslLexValueLteMax(robj *value, zlexrangespec *spec) {
     return spec->maxex ?
         (compareStringObjectsForLexRange(value,spec->max) < 0) :
@@ -560,6 +635,9 @@ static int zslLexValueLteMax(robj *value, zlexrangespec *spec) {
 }
 
 /* Returns if there is a part of the zset is in the lex range. */
+/*
+ * 检测给定的跳跃表是否在给定的区间内
+ */
 int zslIsInLexRange(zskiplist *zsl, zlexrangespec *range) {
     zskiplistNode *x;
 
@@ -579,6 +657,9 @@ int zslIsInLexRange(zskiplist *zsl, zlexrangespec *range) {
 
 /* Find the first node that is contained in the specified lex range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 查找在指定区间第一个节点, 如果不存在则返回 NULL
+ */
 zskiplistNode *zslFirstInLexRange(zskiplist *zsl, zlexrangespec *range) {
     zskiplistNode *x;
     int i;
@@ -605,6 +686,9 @@ zskiplistNode *zslFirstInLexRange(zskiplist *zsl, zlexrangespec *range) {
 
 /* Find the last node that is contained in the specified range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 查找在指定范围区间内的最后一个节点，如果不存则返回 NULL
+ */
 zskiplistNode *zslLastInLexRange(zskiplist *zsl, zlexrangespec *range) {
     zskiplistNode *x;
     int i;
@@ -632,6 +716,9 @@ zskiplistNode *zslLastInLexRange(zskiplist *zsl, zlexrangespec *range) {
  * Ziplist-backed sorted set API
  *----------------------------------------------------------------------------*/
 
+/*
+ * 返回节点的 score 值
+ */
 double zzlGetScore(unsigned char *sptr) {
     unsigned char *vstr;
     unsigned int vlen;
@@ -656,6 +743,9 @@ double zzlGetScore(unsigned char *sptr) {
 /* Return a ziplist element as a Redis string object.
  * This simple abstraction can be used to simplifies some code at the
  * cost of some performance. */
+/*
+ * 返回节点的对象
+ */
 robj *ziplistGetObject(unsigned char *sptr) {
     unsigned char *vstr;
     unsigned int vlen;
@@ -672,6 +762,9 @@ robj *ziplistGetObject(unsigned char *sptr) {
 }
 
 /* Compare element in sorted set with given element. */
+/*
+ * 比较给定的节点
+ */
 int zzlCompareElements(unsigned char *eptr, unsigned char *cstr, unsigned int clen) {
     unsigned char *vstr;
     unsigned int vlen;
@@ -692,12 +785,18 @@ int zzlCompareElements(unsigned char *eptr, unsigned char *cstr, unsigned int cl
     return cmp;
 }
 
+/*
+ * 返回节点数
+ */
 unsigned int zzlLength(unsigned char *zl) {
     return ziplistLen(zl)/2;
 }
 
 /* Move to next entry based on the values in eptr and sptr. Both are set to
  * NULL when there is no next entry. */
+/*
+ * 将节点指向下一个节点，如果下一个节点不存在，则将相应值置为 NULL
+ */
 void zzlNext(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
     unsigned char *_eptr, *_sptr;
     redisAssert(*eptr != NULL && *sptr != NULL);
@@ -717,6 +816,9 @@ void zzlNext(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
 
 /* Move to the previous entry based on the values in eptr and sptr. Both are
  * set to NULL when there is no next entry. */
+/*
+ * 将节点指向上一节点，如果上一节点不存在，则将相应值置为 NULL
+ */
 void zzlPrev(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
     unsigned char *_eptr, *_sptr;
     redisAssert(*eptr != NULL && *sptr != NULL);
@@ -736,6 +838,9 @@ void zzlPrev(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
 
 /* Returns if there is a part of the zset is in range. Should only be used
  * internally by zzlFirstInRange and zzlLastInRange. */
+/*
+ * 检查指定 zset 是否在指定区间内
+ */
 int zzlIsInRange(unsigned char *zl, zrangespec *range) {
     unsigned char *p;
     double score;
@@ -762,6 +867,9 @@ int zzlIsInRange(unsigned char *zl, zrangespec *range) {
 
 /* Find pointer to the first element contained in the specified range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 返回在指定区间内的第一个节点，如果节点存在则返回节点，否则返回 NULL
+ */
 unsigned char *zzlFirstInRange(unsigned char *zl, zrangespec *range) {
     unsigned char *eptr = ziplistIndex(zl,0), *sptr;
     double score;
@@ -790,6 +898,9 @@ unsigned char *zzlFirstInRange(unsigned char *zl, zrangespec *range) {
 
 /* Find pointer to the last element contained in the specified range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 返回在指定区间内的最后一个节点，如果节点存在则返回节点，否则返回 NULL
+ */
 unsigned char *zzlLastInRange(unsigned char *zl, zrangespec *range) {
     unsigned char *eptr = ziplistIndex(zl,-2), *sptr;
     double score;
@@ -821,6 +932,9 @@ unsigned char *zzlLastInRange(unsigned char *zl, zrangespec *range) {
     return NULL;
 }
 
+/*
+ * 检查指定节点是否大于给定区间的最小值
+ */
 static int zzlLexValueGteMin(unsigned char *p, zlexrangespec *spec) {
     robj *value = ziplistGetObject(p);
     int res = zslLexValueGteMin(value,spec);
@@ -828,6 +942,9 @@ static int zzlLexValueGteMin(unsigned char *p, zlexrangespec *spec) {
     return res;
 }
 
+/*
+ * 检查指定节点是否小于给定区间的最大值
+ */
 static int zzlLexValueLteMax(unsigned char *p, zlexrangespec *spec) {
     robj *value = ziplistGetObject(p);
     int res = zslLexValueLteMax(value,spec);
@@ -837,6 +954,9 @@ static int zzlLexValueLteMax(unsigned char *p, zlexrangespec *spec) {
 
 /* Returns if there is a part of the zset is in range. Should only be used
  * internally by zzlFirstInRange and zzlLastInRange. */
+/*
+ * 检查给定的 zset 是否在给定的范围区间内 ele
+ */
 int zzlIsInLexRange(unsigned char *zl, zlexrangespec *range) {
     unsigned char *p;
 
@@ -861,6 +981,9 @@ int zzlIsInLexRange(unsigned char *zl, zlexrangespec *range) {
 
 /* Find pointer to the first element contained in the specified lex range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 返回属于指定区间内的第一个节点，如果不存在该节点则返回 NULL
+ */
 unsigned char *zzlFirstInLexRange(unsigned char *zl, zlexrangespec *range) {
     unsigned char *eptr = ziplistIndex(zl,0), *sptr;
 
@@ -886,6 +1009,9 @@ unsigned char *zzlFirstInLexRange(unsigned char *zl, zlexrangespec *range) {
 
 /* Find pointer to the last element contained in the specified lex range.
  * Returns NULL when no element is contained in the range. */
+/*
+ * 返回属于指定区间内的最后一个节点，如果不存在该节点则返回 NULL
+ */
 unsigned char *zzlLastInLexRange(unsigned char *zl, zlexrangespec *range) {
     unsigned char *eptr = ziplistIndex(zl,-2), *sptr;
 
@@ -912,6 +1038,9 @@ unsigned char *zzlLastInLexRange(unsigned char *zl, zlexrangespec *range) {
     return NULL;
 }
 
+/*
+ * 获取指定节点 ele 的 score 值
+ */
 unsigned char *zzlFind(unsigned char *zl, robj *ele, double *score) {
     unsigned char *eptr = ziplistIndex(zl,0), *sptr;
 
@@ -937,6 +1066,9 @@ unsigned char *zzlFind(unsigned char *zl, robj *ele, double *score) {
 
 /* Delete (element,score) pair from ziplist. Use local copy of eptr because we
  * don't want to modify the one given as argument. */
+/*
+ * 删除指定节点
+ */
 unsigned char *zzlDelete(unsigned char *zl, unsigned char *eptr) {
     unsigned char *p = eptr;
 
@@ -946,6 +1078,9 @@ unsigned char *zzlDelete(unsigned char *zl, unsigned char *eptr) {
     return zl;
 }
 
+/*
+ * 在指定节点位置插入新节点
+ */
 unsigned char *zzlInsertAt(unsigned char *zl, unsigned char *eptr, robj *ele, double score) {
     unsigned char *sptr;
     char scorebuf[128];
@@ -973,6 +1108,9 @@ unsigned char *zzlInsertAt(unsigned char *zl, unsigned char *eptr, robj *ele, do
 
 /* Insert (element,score) pair in ziplist. This function assumes the element is
  * not yet present in the list. */
+/*
+ * 插入指定节点对 ele score
+ */
 unsigned char *zzlInsert(unsigned char *zl, robj *ele, double score) {
     unsigned char *eptr = ziplistIndex(zl,0), *sptr;
     double s;
@@ -1009,6 +1147,9 @@ unsigned char *zzlInsert(unsigned char *zl, robj *ele, double score) {
     return zl;
 }
 
+/*
+ * 删除指定 score 值的节点
+ */
 unsigned char *zzlDeleteRangeByScore(unsigned char *zl, zrangespec *range, unsigned long *deleted) {
     unsigned char *eptr, *sptr;
     double score;
@@ -1038,6 +1179,9 @@ unsigned char *zzlDeleteRangeByScore(unsigned char *zl, zrangespec *range, unsig
     return zl;
 }
 
+/*
+ * 删除指定区间内的值
+ */
 unsigned char *zzlDeleteRangeByLex(unsigned char *zl, zlexrangespec *range, unsigned long *deleted) {
     unsigned char *eptr, *sptr;
     unsigned long num = 0;
@@ -1067,6 +1211,9 @@ unsigned char *zzlDeleteRangeByLex(unsigned char *zl, zlexrangespec *range, unsi
 
 /* Delete all the elements with rank between start and end from the skiplist.
  * Start and end are inclusive. Note that start and end need to be 1-based */
+/*
+ * 删除指定 rank 范围的节点
+ */
 unsigned char *zzlDeleteRangeByRank(unsigned char *zl, unsigned int start, unsigned int end, unsigned long *deleted) {
     unsigned int num = (end-start)+1;
     if (deleted) *deleted = num;
@@ -1078,6 +1225,9 @@ unsigned char *zzlDeleteRangeByRank(unsigned char *zl, unsigned int start, unsig
  * Common sorted set API
  *----------------------------------------------------------------------------*/
 
+/*
+ * 返回指定 zset 的元素个数
+ */
 unsigned int zsetLength(robj *zobj) {
     int length = -1;
     if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
@@ -1090,6 +1240,9 @@ unsigned int zsetLength(robj *zobj) {
     return length;
 }
 
+/*
+ * 将指定 zset 转换成指定编码
+ */
 void zsetConvert(robj *zobj, int encoding) {
     zset *zs;
     zskiplistNode *node, *next;
@@ -1176,6 +1329,9 @@ void zsetConvert(robj *zobj, int encoding) {
 #define ZADD_NX (1<<1)      /* Don't touch elements not already existing. */
 #define ZADD_XX (1<<2)      /* Only touch elements already exisitng. */
 #define ZADD_CH (1<<3)      /* Return num of elements added or updated. */
+/*
+ * zadd 基础命令
+ */
 void zaddGenericCommand(redisClient *c, int flags) {
     static char *nanerr = "resulting score is not a number (NaN)";
     robj *key = c->argv[1];
@@ -1237,6 +1393,7 @@ void zaddGenericCommand(redisClient *c, int flags) {
     /* Start parsing all the scores, we need to emit any syntax error
      * before executing additions to the sorted set, as the command should
      * either execute fully or nothing at all. */
+    /* 检查score值是否正确 */
     scores = zmalloc(sizeof(double)*elements);
     for (j = 0; j < elements; j++) {
         if (getDoubleFromObjectOrReply(c,c->argv[scoreidx+j*2],&scores[j],NULL)
@@ -1244,6 +1401,7 @@ void zaddGenericCommand(redisClient *c, int flags) {
     }
 
     /* Lookup the key and create the sorted set if does not exist. */
+    /* 检查key是否存在，如果不存在则创建 */
     zobj = lookupKeyWrite(c->db,key);
     if (zobj == NULL) {
         if (xx) goto reply_to_client; /* No key + XX option: nothing to do. */
@@ -1261,18 +1419,19 @@ void zaddGenericCommand(redisClient *c, int flags) {
             goto cleanup;
         }
     }
-
+    /* 添加值 */
     for (j = 0; j < elements; j++) {
         score = scores[j];
 
-        if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+        if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {                         //ziplist 编码
             unsigned char *eptr;
 
             /* Prefer non-encoded element when dealing with ziplists. */
             ele = c->argv[scoreidx+1+j*2];
-            if ((eptr = zzlFind(zobj->ptr,ele,&curscore)) != NULL) {
-                if (nx) continue;
+            if ((eptr = zzlFind(zobj->ptr,ele,&curscore)) != NULL) {            // ele 存在
+                if (nx) continue;                                               // nx 选项,ele 存在不做任何处理
                 if (incr) {
+                    /* incr 操作 */
                     score += curscore;
                     if (isnan(score)) {
                         addReplyError(c,nanerr);
@@ -1281,6 +1440,7 @@ void zaddGenericCommand(redisClient *c, int flags) {
                 }
 
                 /* Remove and re-insert when score changed. */
+                /* 如果值不想同，则删除旧值，加入新值 */
                 if (score != curscore) {
                     zobj->ptr = zzlDelete(zobj->ptr,eptr);
                     zobj->ptr = zzlInsert(zobj->ptr,ele,score);
@@ -1288,7 +1448,7 @@ void zaddGenericCommand(redisClient *c, int flags) {
                     updated++;
                 }
                 processed++;
-            } else if (!xx) {
+            } else if (!xx) {                                                   //Key 不存在，如果 XX 选项在，则不做任何处理
                 /* Optimize: check if the element is too large or the list
                  * becomes too long *before* executing zzlInsert. */
                 zobj->ptr = zzlInsert(zobj->ptr,ele,score);
@@ -1300,7 +1460,7 @@ void zaddGenericCommand(redisClient *c, int flags) {
                 added++;
                 processed++;
             }
-        } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+        } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {                 //skiplist 编码
             zset *zs = zobj->ptr;
             zskiplistNode *znode;
             dictEntry *de;
@@ -1368,14 +1528,29 @@ cleanup:
     }
 }
 
+/*
+ * ZADD 命令， 添加多个 ele score 值对至 zset 中
+ *
+ * ZADD key [NX] [XX] [INCR] score1 v1 [score2 v2 ...]
+ */
 void zaddCommand(redisClient *c) {
     zaddGenericCommand(c,ZADD_NONE);
 }
 
+/*
+ * ZINCRBY 命令，给定 ele 加 data 值
+ *
+ * ZINCRBY key data v1
+ */
 void zincrbyCommand(redisClient *c) {
     zaddGenericCommand(c,ZADD_INCR);
 }
 
+/*
+ * ZREM 命令, 删除指定 ele, 返回删除的节点数
+ *
+ * ZREM key ele1 [ele2 ...]
+ */
 void zremCommand(redisClient *c) {
     robj *key = c->argv[1];
     robj *zobj;
@@ -1440,6 +1615,9 @@ void zremCommand(redisClient *c) {
 #define ZRANGE_RANK 0
 #define ZRANGE_SCORE 1
 #define ZRANGE_LEX 2
+/*
+ * 删除指定区间范围内的节点
+ */
 void zremrangeGenericCommand(redisClient *c, int rangetype) {
     robj *key = c->argv[1];
     robj *zobj;
@@ -1451,15 +1629,18 @@ void zremrangeGenericCommand(redisClient *c, int rangetype) {
 
     /* Step 1: Parse the range. */
     if (rangetype == ZRANGE_RANK) {
+        /* 删除的 RANK 区间 */
         if ((getLongFromObjectOrReply(c,c->argv[2],&start,NULL) != REDIS_OK) ||
             (getLongFromObjectOrReply(c,c->argv[3],&end,NULL) != REDIS_OK))
             return;
     } else if (rangetype == ZRANGE_SCORE) {
+        /* 删除的 SCORE 区间 */
         if (zslParseRange(c->argv[2],c->argv[3],&range) != REDIS_OK) {
             addReplyError(c,"min or max is not a float");
             return;
         }
     } else if (rangetype == ZRANGE_LEX) {
+        /* 删除的是 LEX 区间 */
         if (zslParseLexRange(c->argv[2],c->argv[3],&lexrange) != REDIS_OK) {
             addReplyError(c,"min or max not valid string range item");
             return;
@@ -1467,6 +1648,7 @@ void zremrangeGenericCommand(redisClient *c, int rangetype) {
     }
 
     /* Step 2: Lookup & range sanity checks if needed. */
+    /* 检查 key 是否存在 */
     if ((zobj = lookupKeyWriteOrReply(c,key,shared.czero)) == NULL ||
         checkType(c,zobj,REDIS_ZSET)) goto cleanup;
 
@@ -1487,6 +1669,7 @@ void zremrangeGenericCommand(redisClient *c, int rangetype) {
     }
 
     /* Step 3: Perform the range deletion operation. */
+    /* 执行删除操作 */
     if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
         switch(rangetype) {
         case ZRANGE_RANK:
@@ -1540,14 +1723,35 @@ cleanup:
     if (rangetype == ZRANGE_LEX) zslFreeLexRange(&lexrange);
 }
 
+/*
+ * ZREMRANGEBBYRANK 命令，删除指定 RANK 区间的节点
+ *
+ * ZREMRANGEBBYRANK key start end
+ */
 void zremrangebyrankCommand(redisClient *c) {
     zremrangeGenericCommand(c,ZRANGE_RANK);
 }
 
+/*
+ * ZREMRANGEBYSCORE 命令，删除指定 score 区间的节点
+ *
+ * ZREMRANGEBYSCORE key score_start score_end
+ */
 void zremrangebyscoreCommand(redisClient *c) {
     zremrangeGenericCommand(c,ZRANGE_SCORE);
 }
 
+/*
+ * ZREMRANGEBYLEX 命令， 删除指定 lex 公式范围内的节点, 区间范围针对 ele 并非分值
+ *
+ * ZREMRANGEBYLEX key lex_start lex_end
+ *
+ * lex 公式可以为 - + ( [ 区间
+ * -: 最小
+ * +: 最大
+ * (: 开区间
+ * [: 闭区间
+ */
 void zremrangebylexCommand(redisClient *c) {
     zremrangeGenericCommand(c,ZRANGE_LEX);
 }
@@ -2143,14 +2347,33 @@ void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op) {
     zfree(src);
 }
 
+/*
+ * ZUNIONSTORE 命令，计算一个或多个有序集的并集,其中 key 的数量必须指定,并将并集结果存在到指定 key 中
+ *
+ * ZUNIONSTORE dstKey numkeys key1 [key2 ...] [WEIGHTS weight [weight]] [AGGREGATE SUM|MIN|MAX]
+ *
+ * WEIGHTS: 给每个指定的有序集分别指定一个乘法因子，默认为1
+ * AGGREGAGE: 指定并集的聚合方式
+ */
 void zunionstoreCommand(redisClient *c) {
     zunionInterGenericCommand(c,c->argv[1], REDIS_OP_UNION);
 }
 
+/*
+ * ZINTERSTORE 命令，计算一个或多个有序集的交集,其中 key 的数量必须指定,并将交集结果存在到指定 key 中
+ *
+ * ZINTERSTORE dstKey numkeys key1 [key2 ...] [WEIGHTS weight [weight]] [AGGREGATE SUM|MIN|MAX]
+ *
+ * WEIGHTS: 给每个指定的有序集分别指定一个乘法因子，默认为1
+ * AGGREGAGE: 指定并集的聚合方式, 默认情况下为 SUM
+ */
 void zinterstoreCommand(redisClient *c) {
     zunionInterGenericCommand(c,c->argv[1], REDIS_OP_INTER);
 }
 
+/*
+ * 返回指定区间内的值
+ */
 void zrangeGenericCommand(redisClient *c, int reverse) {
     robj *key = c->argv[1];
     robj *zobj;
@@ -2253,10 +2476,20 @@ void zrangeGenericCommand(redisClient *c, int reverse) {
     }
 }
 
+/*
+ * ZRANGE 命令, 返回指定区间的节点
+ *
+ * ZRANGE key start stop [WITHSCORES]
+ */
 void zrangeCommand(redisClient *c) {
     zrangeGenericCommand(c,0);
 }
 
+/*
+ * ZREVRANGE 命令, 逆序返回指定区间的节点
+ *
+ * ZREVRANGE key start stop [WITHSCORES]
+ */
 void zrevrangeCommand(redisClient *c) {
     zrangeGenericCommand(c,1);
 }
@@ -2448,14 +2681,29 @@ void genericZrangebyscoreCommand(redisClient *c, int reverse) {
     setDeferredMultiBulkLength(c, replylen, rangelen);
 }
 
+/*
+ * ZRANGEBYSCORE 命令, 返回有序集中，score 值介于指定区间的成员
+ *
+ * ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
+ */
 void zrangebyscoreCommand(redisClient *c) {
     genericZrangebyscoreCommand(c,0);
 }
 
+/*
+ * ZREVRANGEBYSCORE 命令, 返回有序集中，score 值介于指定区间的成员
+ *
+ * ZREVRANGEBYSCORE key max min [WITHSCORES] [LIMIT offset count]
+ */
 void zrevrangebyscoreCommand(redisClient *c) {
     genericZrangebyscoreCommand(c,1);
 }
 
+/*
+ * ZCOUNT 命令, 返回有序集中值在指定区间内值的元素个数
+ *
+ * ZCOUNT key min max
+ */
 void zcountCommand(redisClient *c) {
     robj *key = c->argv[1];
     robj *zobj;
@@ -2533,6 +2781,11 @@ void zcountCommand(redisClient *c) {
     addReplyLongLong(c, count);
 }
 
+/*
+ * ZLEXCOUNT 命令，返回元素介于指定区间的元素个数
+ *
+ * ZLEXCOUNT key min max
+ */
 void zlexcountCommand(redisClient *c) {
     robj *key = c->argv[1];
     robj *zobj;
@@ -2789,14 +3042,29 @@ void genericZrangebylexCommand(redisClient *c, int reverse) {
     setDeferredMultiBulkLength(c, replylen, rangelen);
 }
 
+/*
+ * ZRANGEBYLEX 命令, 返回有序集中key介于指定区间内的元素
+ *
+ * ZRANGEBYLEX key min max [LIMIT offset count]
+ */
 void zrangebylexCommand(redisClient *c) {
     genericZrangebylexCommand(c,0);
 }
 
+/*
+ * ZREVRANGEBYLEX 命令, 返回有序集中key介于指定区间内的元素
+ *
+ * ZREVRANGEBYLEX key max min [LIMIT offset count]
+ */
 void zrevrangebylexCommand(redisClient *c) {
     genericZrangebylexCommand(c,1);
 }
 
+/*
+ * ZCARD 命令，返回有序集的元素个数
+ *
+ * ZCARD key
+ */
 void zcardCommand(redisClient *c) {
     robj *key = c->argv[1];
     robj *zobj;
@@ -2807,6 +3075,11 @@ void zcardCommand(redisClient *c) {
     addReplyLongLong(c,zsetLength(zobj));
 }
 
+/*
+ * ZSCORE 命令, 获取指定元素的score值,元素存在则返回对应的score值，否则返回 NULL
+ *
+ * ZSCORE key val
+ */
 void zscoreCommand(redisClient *c) {
     robj *key = c->argv[1];
     robj *zobj;
@@ -2837,6 +3110,9 @@ void zscoreCommand(redisClient *c) {
     }
 }
 
+/*
+ * ZRANK 命令
+ */
 void zrankGenericCommand(redisClient *c, int reverse) {
     robj *key = c->argv[1];
     robj *ele = c->argv[2];
@@ -2899,14 +3175,27 @@ void zrankGenericCommand(redisClient *c, int reverse) {
     }
 }
 
+/*
+ * ZRANK 命令， 返回有序集指定元素的 Rank, 若元素存在返回对应的 rank, 否则返回 NULL
+ *
+ * ZRANK key val
+ */
 void zrankCommand(redisClient *c) {
     zrankGenericCommand(c, 0);
 }
 
+/*
+ * ZREVRANK 命令， 返回有序集指定元素的 Rank, 若元素存在返回对应的 rank, 否则返回 NULL
+ *
+ * ZREVRANK key val
+ */
 void zrevrankCommand(redisClient *c) {
     zrankGenericCommand(c, 1);
 }
 
+/*
+ * ZSCAN 命令，浏览有序集元素
+ */
 void zscanCommand(redisClient *c) {
     robj *o;
     unsigned long cursor;

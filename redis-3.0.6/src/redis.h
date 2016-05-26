@@ -610,11 +610,17 @@ typedef struct redisClient {
     char buf[REDIS_REPLY_CHUNK_BYTES];
 } redisClient;
 
+/*
+ * dump 触发参数结构体
+ */
 struct saveparam {
     time_t seconds;
     int changes;
 };
 
+/*
+ * 共享对象
+ */
 struct sharedObjectsStruct {
     robj *crlf, *ok, *err, *emptybulk, *czero, *cone, *cnegone, *pong, *space,
     *colon, *nullbulk, *nullmultibulk, *queued,
@@ -631,8 +637,13 @@ struct sharedObjectsStruct {
 };
 
 /* ZSETs use a specialized version of Skiplists */
+/*
+ * 跳跃表节点结构体
+ */
 typedef struct zskiplistNode {
+    /* 节点对象 */
     robj *obj;
+    /* 节点分值 */
     double score;
     struct zskiplistNode *backward;
     struct zskiplistLevel {
@@ -641,8 +652,12 @@ typedef struct zskiplistNode {
     } level[];
 } zskiplistNode;
 
+/*
+ * 跳跃表链表结构体
+ */
 typedef struct zskiplist {
     struct zskiplistNode *header, *tail;
+    /* 链表节点数 */
     unsigned long length;
     int level;
 } zskiplist;
