@@ -130,6 +130,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REDIS_MIN_RESERVED_FDS 32
 #define REDIS_DEFAULT_LATENCY_MONITOR_THRESHOLD 0
 
+/*单次查找过期的key的次数*/
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
 #define ACTIVE_EXPIRE_CYCLE_FAST_DURATION 1000 /* Microseconds */
 #define ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC 25 /* CPU max % for keys collection */
@@ -257,6 +258,9 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REDIS_BLOCKED_WAIT 2    /* WAIT for synchronous replication. */
 
 /* Client request types */
+/*
+ * 客户端请求协议类型
+ */
 #define REDIS_REQ_INLINE 1
 #define REDIS_REQ_MULTIBULK 2
 
@@ -350,6 +354,9 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REDIS_OP_INTER 2
 
 /* Redis maxmemory strategies */
+/*
+ * Redis 达到最大内存时，数据淘汰策略
+ */
 #define REDIS_MAXMEMORY_VOLATILE_LRU 0
 #define REDIS_MAXMEMORY_VOLATILE_TTL 1
 #define REDIS_MAXMEMORY_VOLATILE_RANDOM 2
@@ -362,10 +369,16 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REDIS_LUA_TIME_LIMIT 5000 /* milliseconds */
 
 /* Units */
+/*
+ * 时间精度
+ */
 #define UNIT_SECONDS 0
 #define UNIT_MILLISECONDS 1
 
 /* SHUTDOWN flags */
+/*
+ * SHUTDOWN 参数
+ */
 #define REDIS_SHUTDOWN_SAVE 1       /* Force SAVE on SHUTDOWN even if no save
                                        points are configured. */
 #define REDIS_SHUTDOWN_NOSAVE 2     /* Don't SAVE on SHUTDOWN. */
@@ -470,8 +483,13 @@ struct evictionPoolEntry {
 /* Redis database representation. There are multiple databases identified
  * by integers from 0 (the default database) up to the max configured
  * database. The database number is the 'id' field in the structure. */
+/*
+ * Redis DB 结构体
+ */
 typedef struct redisDb {
+    /* 键空间 */
     dict *dict;                 /* The keyspace for this DB */
+    /* 有过期时间的键集合 */
     dict *expires;              /* Timeout of keys with a timeout set */
     /*
      * 等待数据的keys table
@@ -483,21 +501,38 @@ typedef struct redisDb {
      * 因新数据插入处于OK的key集合
      */
     dict *ready_keys;           /* Blocked keys that received a PUSH */
+    /*
+     * watched 的键集合
+     */
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
     struct evictionPoolEntry *eviction_pool;    /* Eviction pool of keys */
+    /*
+     * DB id
+     */
     int id;                     /* Database ID */
+    /*
+     * 该DB中有过期时间的key的平均过期时间(相对值)
+     */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;
 
 /* Client MULTI/EXEC state */
+/*
+ * MULTI/EXEC 状态结构体(单个命令)
+ */
 typedef struct multiCmd {
     robj **argv;
     int argc;
     struct redisCommand *cmd;
 } multiCmd;
 
+/*
+ * multi 状态
+ */
 typedef struct multiState {
+    /* 命令数组 */
     multiCmd *commands;     /* Array of MULTI commands */
+    /* 命令的个数 */
     int count;              /* Total number of MULTI commands */
     int minreplicas;        /* MINREPLICAS for synchronous replication */
     time_t minreplicas_timeout; /* MINREPLICAS timeout as unixtime. */
@@ -537,6 +572,9 @@ typedef struct blockingState {
  * also called ready_keys in every structure representing a Redis database,
  * where we make sure to remember if a given key was already added in the
  * server.ready_keys list. */
+/*
+ * 因为push命令键空间由空至有数据的键集合结构体
+ */
 typedef struct readyList {
     redisDb *db;
     robj *key;
@@ -545,17 +583,25 @@ typedef struct readyList {
 /* With multiplexing we need to take per-client state.
  * Clients are taken in a linked list. */
 typedef struct redisClient {
+    /*客户端唯一id*/
     uint64_t id;            /* Client incremental unique ID. */
+    /*句柄*/
     int fd;
+    /*当前操作的DB*/
     redisDb *db;
+    /*当前操作的DB id*/
     int dictid;
+    /*客户端名字，可以为空*/
     robj *name;             /* As set by CLIENT SETNAME */
     /*请求命令数据缓存*/
     sds querybuf;
     /*未处理的请求数据大小*/
     size_t querybuf_peak;   /* Recent (100ms or more) peak of querybuf size */
+    /*当前请求的参数个数*/
     int argc;
+    /*请求参数数组*/
     robj **argv;
+    /*请求的明*/
     struct redisCommand *cmd, *lastcmd;
     /*协议类型*/
     int reqtype;
@@ -713,12 +759,18 @@ struct clusterState;
 
 struct redisServer {
     /* General */
+    /*进程id*/
     pid_t pid;                  /* Main process pid. */
+    /*配置文件*/
     char *configfile;           /* Absolute config file path, or NULL */
+    /*频率*/
     int hz;                     /* serverCron() calls frequency in hertz */
+    /*db 数组*/
     redisDb *db;
+    /*命令表*/
     dict *commands;             /* Command table */
     dict *orig_commands;        /* Command table before command renaming. */
+    /*时间循环结构体 */
     aeEventLoop *el;
     unsigned lruclock:REDIS_LRU_BITS; /* Clock for LRU eviction */
     int shutdown_asap;          /* SHUTDOWN needed ASAP */
@@ -985,9 +1037,15 @@ typedef struct pubsubPattern {
 
 typedef void redisCommandProc(redisClient *c);
 typedef int *redisGetKeysProc(struct redisCommand *cmd, robj **argv, int argc, int *numkeys);
+/*
+ * Command 结构体
+ */
 struct redisCommand {
+    /* 命令名称 */
     char *name;
+    /* 命令执行函数 */
     redisCommandProc *proc;
+    /* 命令参数的个数，N or -N, -N 代表参数要大于等于 N 个 */
     int arity;
     char *sflags; /* Flags as string representation, one char per flag. */
     int flags;    /* The actual flags, obtained from the 'sflags' field. */

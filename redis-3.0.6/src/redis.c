@@ -292,6 +292,9 @@ struct evictionPoolEntry *evictionPoolAlloc(void);
 
 /* Low level logging. To use only for very big messages, otherwise
  * redisLog() is to prefer. */
+/*
+ * 基础日志接口，上层通过调用该函数实现 log 
+ */
 void redisLogRaw(int level, const char *msg) {
     const int syslogLevelMap[] = { LOG_DEBUG, LOG_INFO, LOG_NOTICE, LOG_WARNING };
     const char *c = ".-*#";
@@ -301,11 +304,12 @@ void redisLogRaw(int level, const char *msg) {
     int log_to_stdout = server.logfile[0] == '\0';
 
     level &= 0xff; /* clear flags */
+    /* 等级必须大于设定的日志等级才会打日志 */
     if (level < server.verbosity) return;
 
     fp = log_to_stdout ? stdout : fopen(server.logfile,"a");
     if (!fp) return;
-
+    /* 原始日志,不加附加信息 */
     if (rawmode) {
         fprintf(fp,"%s",msg);
     } else {
@@ -336,6 +340,9 @@ void redisLogRaw(int level, const char *msg) {
 /* Like redisLogRaw() but with printf-alike support. This is the function that
  * is used across the code. The raw version is only used in order to dump
  * the INFO output on crash. */
+/*
+ * 上层日志接口
+ */
 void redisLog(int level, const char *fmt, ...) {
     va_list ap;
     char msg[REDIS_MAX_LOGMSG_LEN];
@@ -378,6 +385,9 @@ err:
 }
 
 /* Return the UNIX time in microseconds */
+/*
+ * 返回 unix 时间 毫秒级
+ */
 long long ustime(void) {
     struct timeval tv;
     long long ust;
@@ -389,6 +399,9 @@ long long ustime(void) {
 }
 
 /* Return the UNIX time in milliseconds */
+/*
+ * 返回 unix 时间 毫秒级
+ */
 long long mstime(void) {
     return ustime()/1000;
 }
@@ -411,18 +424,27 @@ void exitFromChild(int retcode) {
  * keys and redis objects as values (objects can hold SDS strings,
  * lists, sets). */
 
+/*
+ * 释放指定 val 结构
+ */
 void dictVanillaFree(void *privdata, void *val)
 {
     DICT_NOTUSED(privdata);
     zfree(val);
 }
 
+/*
+ * hash 表中 value 为 list 的释放函数 
+ */
 void dictListDestructor(void *privdata, void *val)
 {
     DICT_NOTUSED(privdata);
     listRelease((list*)val);
 }
 
+/*
+ * 对比 hash 表中的 key (全匹配)
+ */
 int dictSdsKeyCompare(void *privdata, const void *key1,
         const void *key2)
 {
@@ -437,6 +459,9 @@ int dictSdsKeyCompare(void *privdata, const void *key1,
 
 /* A case insensitive version used for the command lookup table and other
  * places where case insensitive non binary-safe comparison is needed. */
+/*
+ * 对比 hash 表中的 key (部分匹配)
+ */
 int dictSdsKeyCaseCompare(void *privdata, const void *key1,
         const void *key2)
 {
@@ -445,6 +470,9 @@ int dictSdsKeyCaseCompare(void *privdata, const void *key1,
     return strcasecmp(key1, key2) == 0;
 }
 
+/*
+ * Redis 对象释放
+ */
 void dictRedisObjectDestructor(void *privdata, void *val)
 {
     DICT_NOTUSED(privdata);
@@ -453,6 +481,9 @@ void dictRedisObjectDestructor(void *privdata, void *val)
     decrRefCount(val);
 }
 
+/*
+ * hash 表 释放 sds 函数
+ */
 void dictSdsDestructor(void *privdata, void *val)
 {
     DICT_NOTUSED(privdata);
@@ -460,6 +491,9 @@ void dictSdsDestructor(void *privdata, void *val)
     sdsfree(val);
 }
 
+/*
+ * hash 表中 key 对比函数
+ */
 int dictObjKeyCompare(void *privdata, const void *key1,
         const void *key2)
 {
@@ -467,19 +501,31 @@ int dictObjKeyCompare(void *privdata, const void *key1,
     return dictSdsKeyCompare(privdata,o1->ptr,o2->ptr);
 }
 
+/*
+ * hash 表key对象哈希函数
+ */
 unsigned int dictObjHash(const void *key) {
     const robj *o = key;
     return dictGenHashFunction(o->ptr, sdslen((sds)o->ptr));
 }
 
+/*
+ * hash 表 sds 对象 哈希函数
+ */
 unsigned int dictSdsHash(const void *key) {
     return dictGenHashFunction((unsigned char*)key, sdslen((char*)key));
 }
 
+/*
+ * hash 表 sds case哈希函数
+ */
 unsigned int dictSdsCaseHash(const void *key) {
     return dictGenCaseHashFunction((unsigned char*)key, sdslen((char*)key));
 }
 
+/*
+ * hash 表 Enc 编码的 key 对比函数
+ */
 int dictEncObjKeyCompare(void *privdata, const void *key1,
         const void *key2)
 {
@@ -498,6 +544,9 @@ int dictEncObjKeyCompare(void *privdata, const void *key1,
     return cmp;
 }
 
+/*
+ * hash 表 Enc 编码 key 的哈希函数
+ */
 unsigned int dictEncObjHash(const void *key) {
     robj *o = (robj*) key;
 
@@ -522,6 +571,9 @@ unsigned int dictEncObjHash(const void *key) {
 }
 
 /* Sets type hash table */
+/*
+ * Set 集合类型的 hash table 
+ */
 dictType setDictType = {
     dictEncObjHash,            /* hash function */
     NULL,                      /* key dup */
@@ -532,6 +584,9 @@ dictType setDictType = {
 };
 
 /* Sorted sets hash (note: a skiplist is used in addition to the hash table) */
+/*
+ * ZSet 集合类型的 hash table
+ */
 dictType zsetDictType = {
     dictEncObjHash,            /* hash function */
     NULL,                      /* key dup */
@@ -542,6 +597,9 @@ dictType zsetDictType = {
 };
 
 /* Db->dict, keys are sds strings, vals are Redis objects. */
+/*
+ * DB hash 表， key 为 sds string, vals 为 redis 对象
+ */
 dictType dbDictType = {
     dictSdsHash,                /* hash function */
     NULL,                       /* key dup */
@@ -552,6 +610,9 @@ dictType dbDictType = {
 };
 
 /* server.lua_scripts sha (as sds string) -> scripts (as robj) cache. */
+/*
+ * sha hash 表
+ */
 dictType shaScriptObjectDictType = {
     dictSdsCaseHash,            /* hash function */
     NULL,                       /* key dup */
@@ -562,6 +623,9 @@ dictType shaScriptObjectDictType = {
 };
 
 /* Db->expires */
+/*
+ * DB 过期键空间 hash 表
+ */
 dictType keyptrDictType = {
     dictSdsHash,               /* hash function */
     NULL,                      /* key dup */
@@ -572,6 +636,9 @@ dictType keyptrDictType = {
 };
 
 /* Command table. sds string -> command struct pointer. */
+/*
+ * Command 命令 hash 表, key 为 sds string, value 为命令对象
+ */
 dictType commandTableDictType = {
     dictSdsCaseHash,           /* hash function */
     NULL,                      /* key dup */
@@ -582,6 +649,9 @@ dictType commandTableDictType = {
 };
 
 /* Hash type hash table (note that small hashes are represented with ziplists) */
+/*
+ * hash 集合的 hash 表
+ */
 dictType hashDictType = {
     dictEncObjHash,             /* hash function */
     NULL,                       /* key dup */
@@ -594,6 +664,9 @@ dictType hashDictType = {
 /* Keylist hash table type has unencoded redis objects as keys and
  * lists as values. It's used for blocking operations (BLPOP) and to
  * map swapped keys to a list of clients waiting for this keys to be loaded. */
+/*
+ * Keylist　类型的hash table, key 为 Redis 对象，value 为 list
+ */
 dictType keylistDictType = {
     dictObjHash,                /* hash function */
     NULL,                       /* key dup */
@@ -639,6 +712,9 @@ dictType migrateCacheDictType = {
 /* Replication cached script dict (server.repl_scriptcache_dict).
  * Keys are sds SHA1 strings, while values are not used at all in the current
  * implementation. */
+/*
+ * Repl cache hash 表
+ */
 dictType replScriptCacheDictType = {
     dictSdsCaseHash,            /* hash function */
     NULL,                       /* key dup */
@@ -648,6 +724,9 @@ dictType replScriptCacheDictType = {
     NULL                        /* val destructor */
 };
 
+/*
+ * 检测 hash 表是否需要重置大小
+ */
 int htNeedsResize(dict *dict) {
     long long size, used;
 
@@ -659,6 +738,9 @@ int htNeedsResize(dict *dict) {
 
 /* If the percentage of used slots in the HT reaches REDIS_HT_MINFILL
  * we resize the hash table to save memory */
+/*
+ * 尝试重置指定 id 的数据集的hash表大小以节省空间
+ */
 void tryResizeHashTables(int dbid) {
     if (htNeedsResize(server.db[dbid].dict))
         dictResize(server.db[dbid].dict);
@@ -673,6 +755,9 @@ void tryResizeHashTables(int dbid) {
  *
  * The function returns 1 if some rehashing was performed, otherwise 0
  * is returned. */
+/*
+ * 执行 1 毫秒的增量 hash 操作
+ */
 int incrementallyRehash(int dbid) {
     /* Keys dictionary */
     if (dictIsRehashing(server.db[dbid].dict)) {
@@ -693,6 +778,9 @@ int incrementallyRehash(int dbid) {
  * memory pages are copied). The goal of this function is to update the ability
  * for dict.c to resize the hash tables accordingly to the fact we have o not
  * running childs. */
+/*
+ * 更新是否能重置 hash 表大小
+ */
 void updateDictResizePolicy(void) {
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1)
         dictEnableResize();
@@ -713,6 +801,10 @@ void updateDictResizePolicy(void) {
  *
  * The parameter 'now' is the current time in milliseconds as is passed
  * to the function to avoid too many gettimeofday() syscalls. */
+/*
+ * 判断一个节点是否过期，如果过期则删除，否则不做任何操作
+ * 节点过期删除则返回 1, 否则返回 0
+ */
 int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
     long long t = dictGetSignedIntegerVal(de);
     if (now > t) {
@@ -752,7 +844,9 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
  * If type is ACTIVE_EXPIRE_CYCLE_SLOW, that normal expire cycle is
  * executed, where the time limit is a percentage of the REDIS_HZ period
  * as specified by the REDIS_EXPIRELOOKUPS_TIME_PERC define. */
-
+/*
+ * 尝试删除一些已经过期的 key 空间
+ */
 void activeExpireCycle(int type) {
     /* This function has some global state in order to continue the work
      * incrementally across calls. */
@@ -811,6 +905,7 @@ void activeExpireCycle(int type) {
             int ttl_samples;
 
             /* If there is nothing to expire try next DB ASAP. */
+            /* 该DB没有key设置有过期时间 */
             if ((num = dictSize(db->expires)) == 0) {
                 db->avg_ttl = 0;
                 break;
@@ -821,6 +916,7 @@ void activeExpireCycle(int type) {
             /* When there are less than 1% filled slots getting random
              * keys is expensive, so stop here waiting for better times...
              * The dictionary will be resized asap. */
+            /* hash 表 slot 节点利用率比较低，暂时不处理，后面进行重置大小后再处理 */
             if (num && slots > DICT_HT_INITIAL_SIZE &&
                 (num*100/slots < 1)) break;
 
@@ -832,7 +928,8 @@ void activeExpireCycle(int type) {
 
             if (num > ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP)
                 num = ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP;
-
+            
+            /* 随机返回一个有过期时间的key,判定是否过期,过期则做过期处理，否则不处理 */
             while (num--) {
                 dictEntry *de;
                 long long ttl;
@@ -862,15 +959,20 @@ void activeExpireCycle(int type) {
                 long long elapsed = ustime()-start;
 
                 latencyAddSampleIfNeeded("expire-cycle",elapsed/1000);
+                /* 检查是否超过限定时间 */
                 if (elapsed > timelimit) timelimit_exit = 1;
             }
             if (timelimit_exit) return;
             /* We don't repeat the cycle if there are less than 25% of keys
              * found expired in the current DB. */
+            /* 当一次遍历过程中过期key的百分比低于25%，则不重复继续 */
         } while (expired > ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP/4);
     }
 }
 
+/*
+ * 获取 LRU 时钟时间
+ */
 unsigned int getLRUClock(void) {
     return (mstime()/REDIS_LRU_CLOCK_RESOLUTION) & REDIS_LRU_CLOCK_MAX;
 }
