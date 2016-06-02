@@ -455,7 +455,7 @@ void pushxGenericCommand(redisClient *c, robj *refval, robj *val, int where) {
 }
 
 /*
- * lpushnx 命令
+ * lpushx 命令
  */
 void lpushxCommand(redisClient *c) {
     c->argv[2] = tryObjectEncoding(c->argv[2]);
@@ -463,7 +463,7 @@ void lpushxCommand(redisClient *c) {
 }
 
 /*
- * rpushnx 命令
+ * rpushx 命令
  */
 void rpushxCommand(redisClient *c) {
     c->argv[2] = tryObjectEncoding(c->argv[2]);

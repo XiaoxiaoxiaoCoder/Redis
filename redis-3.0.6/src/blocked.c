@@ -160,6 +160,9 @@ void unblockClient(redisClient *c) {
 
 /* This function gets called when a blocked client timed out in order to
  * send it a reply of some kind. */
+/*
+ * 当阻塞的客户端超时时间到时，给回复
+ */
 void replyToBlockedClientTimedOut(redisClient *c) {
     if (c->btype == REDIS_BLOCKED_LIST) {
         addReply(c,shared.nullmultibulk);
