@@ -357,12 +357,12 @@ typedef long long mstime_t; /* millisecond time type. */
 /*
  * Redis 达到最大内存时，数据淘汰策略
  */
-#define REDIS_MAXMEMORY_VOLATILE_LRU 0
-#define REDIS_MAXMEMORY_VOLATILE_TTL 1
-#define REDIS_MAXMEMORY_VOLATILE_RANDOM 2
-#define REDIS_MAXMEMORY_ALLKEYS_LRU 3
-#define REDIS_MAXMEMORY_ALLKEYS_RANDOM 4
-#define REDIS_MAXMEMORY_NO_EVICTION 5
+#define REDIS_MAXMEMORY_VOLATILE_LRU 0              //在过期时间的键中选择最久未访问的键淘汰
+#define REDIS_MAXMEMORY_VOLATILE_TTL 1              //在过期时间的键中选择过期时间最短的键淘汰
+#define REDIS_MAXMEMORY_VOLATILE_RANDOM 2           //在有过期时间的键空间中随机淘汰
+#define REDIS_MAXMEMORY_ALLKEYS_LRU 3               //最久位访问的键淘汰
+#define REDIS_MAXMEMORY_ALLKEYS_RANDOM 4            //随机淘汰
+#define REDIS_MAXMEMORY_NO_EVICTION 5               //不淘汰
 #define REDIS_DEFAULT_MAXMEMORY_POLICY REDIS_MAXMEMORY_NO_EVICTION
 
 /* Scripting */
@@ -474,6 +474,9 @@ typedef struct redisObject {
  * greater idle times to the right (ascending order).
  *
  * Empty entries have the key pointer set to NULL. */
+/*
+ * 提出 key 样本集合的大小
+ */
 #define REDIS_EVICTION_POOL_SIZE 16
 struct evictionPoolEntry {
     unsigned long long idle;    /* Object idle time. */

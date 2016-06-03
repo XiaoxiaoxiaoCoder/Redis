@@ -3329,6 +3329,9 @@ void monitorCommand(redisClient *c) {
  * evicted in the whole database. */
 
 /* Create a new eviction pool. */
+/*
+ * 创建一个新的 eviction pool
+ */
 struct evictionPoolEntry *evictionPoolAlloc(void) {
     struct evictionPoolEntry *ep;
     int j;
@@ -3363,7 +3366,7 @@ void evictionPoolPopulate(dict *sampledict, dict *keydict, struct evictionPoolEn
     } else {
         samples = zmalloc(sizeof(samples[0])*server.maxmemory_samples);
     }
-
+    /* 随机获取一些key */
     count = dictGetSomeKeys(sampledict,samples,server.maxmemory_samples);
     for (j = 0; j < count; j++) {
         unsigned long long idle;
@@ -3427,6 +3430,7 @@ int freeMemoryIfNeeded(void) {
     /* Remove the size of slaves output buffers and AOF buffer from the
      * count of used memory. */
     mem_used = zmalloc_used_memory();
+    /* 从节点发送缓冲区不计算在内存使用中 */
     if (slaves) {
         listIter li;
         listNode *ln;
@@ -3441,18 +3445,21 @@ int freeMemoryIfNeeded(void) {
                 mem_used -= obuf_bytes;
         }
     }
+    /* AOF 缓冲区也不算内存使用量 */
     if (server.aof_state != REDIS_AOF_OFF) {
         mem_used -= sdslen(server.aof_buf);
         mem_used -= aofRewriteBufferSize();
     }
 
     /* Check if we are over the memory limit. */
+    /* 内存使用在内存限制下，不需要释放 */
     if (mem_used <= server.maxmemory) return REDIS_OK;
 
     if (server.maxmemory_policy == REDIS_MAXMEMORY_NO_EVICTION)
         return REDIS_ERR; /* We need to free memory, but policy forbids. */
 
     /* Compute how much memory we need to free. */
+    /* 计算需要释放多少内存 */
     mem_tofree = mem_used - server.maxmemory;
     mem_freed = 0;
     latencyStartMonitor(latency);
@@ -3467,11 +3474,11 @@ int freeMemoryIfNeeded(void) {
             dict *dict;
 
             if (server.maxmemory_policy == REDIS_MAXMEMORY_ALLKEYS_LRU ||
-                server.maxmemory_policy == REDIS_MAXMEMORY_ALLKEYS_RANDOM)
+                server.maxmemory_policy == REDIS_MAXMEMORY_ALLKEYS_RANDOM)  //最近访问时间或随机释放策略
             {
-                dict = server.db[j].dict;
+                dict = server.db[j].dict;           //键空间
             } else {
-                dict = server.db[j].expires;
+                dict = server.db[j].expires;        //有过期时间的键空间
             }
             if (dictSize(dict) == 0) continue;
 
@@ -3539,6 +3546,7 @@ int freeMemoryIfNeeded(void) {
             }
 
             /* Finally remove the selected key. */
+            /* 淘汰key */
             if (bestkey) {
                 long long delta;
 
@@ -3620,6 +3628,9 @@ void createPidFile(void) {
     }
 }
 
+/*
+ * 守护进程
+ */
 void daemonize(void) {
     int fd;
 
@@ -3637,6 +3648,9 @@ void daemonize(void) {
     }
 }
 
+/*
+ * 版本信息
+ */
 void version(void) {
     printf("Redis server v=%s sha=%s:%d malloc=%s bits=%d build=%llx\n",
         REDIS_VERSION,
@@ -3698,6 +3712,9 @@ void redisAsciiArt(void) {
     zfree(buf);
 }
 
+/*
+ * 处理信号量
+ */
 static void sigShutdownHandler(int sig) {
     char *msg;
 
@@ -3728,6 +3745,9 @@ static void sigShutdownHandler(int sig) {
     server.shutdown_asap = 1;
 }
 
+/*
+ * 设置信号量处理函数
+ */
 void setupSignalHandlers(void) {
     struct sigaction act;
 
@@ -3765,6 +3785,9 @@ int checkForSentinelMode(int argc, char **argv) {
 }
 
 /* Function called at startup to load RDB or AOF file in memory. */
+/*
+ * 从磁盘中加载数据
+ */
 void loadDataFromDisk(void) {
     long long start = ustime();
     if (server.aof_state == REDIS_AOF_ON) {
@@ -3787,6 +3810,9 @@ void redisOutOfMemoryHandler(size_t allocation_size) {
     redisPanic("Redis aborting for OUT OF MEMORY");
 }
 
+/*
+ * 设置进程名称
+ */
 void redisSetProcTitle(char *title) {
 #ifdef USE_SETPROCTITLE
     char *server_mode = "";
@@ -3803,6 +3829,9 @@ void redisSetProcTitle(char *title) {
 #endif
 }
 
+/*
+ * main 函数
+ */
 int main(int argc, char **argv) {
     struct timeval tv;
 
@@ -3884,7 +3913,7 @@ int main(int argc, char **argv) {
     }
     if (server.daemonize) daemonize();
     initServer();
-    if (server.daemonize) createPidFile();
+    if (server.daemonize) createPidFile();UNSUBSCRIBE
     redisSetProcTitle(argv[0]);
     redisAsciiArt();
     checkTcpBacklogSettings();
