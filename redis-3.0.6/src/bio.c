@@ -169,7 +169,7 @@ void *bioProcessBackgroundJobs(void *arg) {
         listNode *ln;
 
         /* The loop always starts with the lock hold. */
-        if (listLength(bio_jobs[type]) == 0) {
+        if (listLength(bio_jobs[type]) == 0) {http://www.jianshu.com/p/591b221ed7b9
             pthread_cond_wait(&bio_condvar[type],&bio_mutex[type]);
             continue;
         }

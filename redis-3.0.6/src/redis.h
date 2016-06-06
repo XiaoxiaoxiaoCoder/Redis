@@ -826,7 +826,9 @@ struct redisServer {
     /*key命中失败次数*/
     long long stat_keyspace_misses; /* Number of failed lookups of keys */
     size_t stat_peak_memory;        /* Max used memory record */
+    /* 创建一个子进程需要的时间 */
     long long stat_fork_time;       /* Time needed to perform latest fork() */
+    /* fork 比率 */
     double stat_fork_rate;          /* Fork rate in GB/sec. */
     long long stat_rejected_conn;   /* Clients rejected because of maxclients */
     long long stat_sync_full;       /* Number of full resyncs with slaves. */
@@ -857,39 +859,61 @@ struct redisServer {
     int daemonize;                  /* True if running as a daemon */
     clientBufferLimitsConfig client_obuf_limits[REDIS_CLIENT_TYPE_COUNT];
     /* AOF persistence */
+    /* AOF 状态 */
     int aof_state;                  /* REDIS_AOF_(ON|OFF|WAIT_REWRITE) */
     int aof_fsync;                  /* Kind of fsync() policy */
     char *aof_filename;             /* Name of the AOF file */
     int aof_no_fsync_on_rewrite;    /* Don't fsync if a rewrite is in prog. */
     int aof_rewrite_perc;           /* Rewrite AOF if % growth is > M and... */
     off_t aof_rewrite_min_size;     /* the AOF file is at least N bytes. */
+    /* 上次开始AOF重写时候 AOF 文件的大小 */
     off_t aof_rewrite_base_size;    /* AOF size on latest startup or rewrite. */
+    /* AOF 文件当前大小 */
     off_t aof_current_size;         /* AOF current size. */
     int aof_rewrite_scheduled;      /* Rewrite once BGSAVE terminates. */
+    /* 后台 AOF 重写进程ID */
     pid_t aof_child_pid;            /* PID if rewriting process */
+    /* 保存在后台 AOF rewrite 期间产生的变化数据 */
     list *aof_rewrite_buf_blocks;   /* Hold changes during an AOF rewrite. */
     sds aof_buf;      /* AOF buffer, written before entering the event loop */
+    /* AOF 文件描述符 */
     int aof_fd;       /* File descriptor of currently selected AOF file */
+    /* 当前 AOF 选择的 DB */
     int aof_selected_db; /* Currently selected DB in AOF */
+    /* AOF flush 推迟的时间点 */
     time_t aof_flush_postponed_start; /* UNIX time of postponed AOF flush */
+    /* AOF 上次 fsync 的时间点 */
     time_t aof_last_fsync;            /* UNIX time of last fsync() */
+    /* 最近一次 AOF 重写所消耗时间 */
     time_t aof_rewrite_time_last;   /* Time used by last AOF rewrite run. */
+    /* 后台 AOF 重写开始时间 */
     time_t aof_rewrite_time_start;  /* Current AOF rewrite start time. */
     int aof_lastbgrewrite_status;   /* REDIS_OK or REDIS_ERR */
+    /* 推迟 AOF fsync 的次数 */
     unsigned long aof_delayed_fsync;  /* delayed AOF fsync() counter */
     int aof_rewrite_incremental_fsync;/* fsync incrementally while rewriting? */
+    /* 最近写 AOF 的状态 */
     int aof_last_write_status;      /* REDIS_OK or REDIS_ERR */
+    /* 最近写 AOF 的错误码 */
     int aof_last_write_errno;       /* Valid if aof_last_write_status is ERR */
     int aof_load_truncated;         /* Don't stop on unexpected AOF EOF. */
     /* AOF pipes used to communicate between parent and child during rewrite. */
+    /* 父进程给子进程写数据的管道 */
     int aof_pipe_write_data_to_child;
+    /* 子进程从父进程读取数据的管道 */
     int aof_pipe_read_data_from_parent;
+    /* 子进程给父进程写ack的管道 */
     int aof_pipe_write_ack_to_parent;
+    /* 父进程从子进程读取ack的管道 */
     int aof_pipe_read_ack_from_child;
+    /* 父进程给子进程写ack的管道 */
     int aof_pipe_write_ack_to_child;
+    /* 子进程从父进程读取ack的管道 */
     int aof_pipe_read_ack_from_parent;
+    /* 是否停止在AOF重写过程中发送差异数据 */
     int aof_stop_sending_diff;     /* If true stop sending accumulated diffs
                                       to child process. */
+    /* AOF 重写子进程过程中,子进程用来存储父进程发送过来的脏数据 */
     sds aof_child_diff;             /* AOF diff accumulator child side. */
     /* RDB persistence */
     long long dirty;                /* Changes to DB from the last save */
