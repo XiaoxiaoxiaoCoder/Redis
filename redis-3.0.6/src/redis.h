@@ -649,7 +649,9 @@ typedef struct redisClient {
     blockingState bpop;     /* blocking state */
     long long woff;         /* Last write global replication offset. */
     list *watched_keys;     /* Keys WATCHED for MULTI/EXEC CAS */
+    /* 客户端感兴趣的频道 */
     dict *pubsub_channels;  /* channels a client is interested in (SUBSCRIBE) */
+    /* 客户端感兴趣的模式 */
     list *pubsub_patterns;  /* patterns a client is interested in (SUBSCRIBE) */
     sds peerid;             /* Cached peer ID. */
 
@@ -1019,7 +1021,9 @@ struct redisServer {
     time_t unixtime;        /* Unix time sampled every cron cycle. */
     long long mstime;       /* Like 'unixtime' but with milliseconds resolution. */
     /* Pubsub */
+    /* 客户端订阅的频道 */
     dict *pubsub_channels;  /* Map channels to list of subscribed clients */
+    /* 客户端感兴趣的频道模式 */
     list *pubsub_patterns;  /* A list of pubsub_patterns */
     int notify_keyspace_events; /* Events to propagate via Pub/Sub. This is an
                                    xor of REDIS_NOTIFY... flags. */
@@ -1057,9 +1061,12 @@ struct redisServer {
     int watchdog_period;  /* Software watchdog period in ms. 0 = off */
 };
 
+/*
+ * 订阅模式结构体
+ */
 typedef struct pubsubPattern {
-    redisClient *client;
-    robj *pattern;
+    redisClient *client;        //订阅的客户端
+    robj *pattern;              //订阅内容的匹配模式
 } pubsubPattern;
 
 typedef void redisCommandProc(redisClient *c);

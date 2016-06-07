@@ -234,6 +234,9 @@ typedef struct redisAeEvents {
     int reading, writing;
 } redisAeEvents;
 
+/*
+ * 处理读事件
+ */
 static void redisAeReadEvent(aeEventLoop *el, int fd, void *privdata, int mask) {
     ((void)el); ((void)fd); ((void)mask);
 
@@ -241,6 +244,9 @@ static void redisAeReadEvent(aeEventLoop *el, int fd, void *privdata, int mask) 
     redisAsyncHandleRead(e->context);
 }
 
+/*
+ * 处理写事件
+ */
 static void redisAeWriteEvent(aeEventLoop *el, int fd, void *privdata, int mask) {
     ((void)el); ((void)fd); ((void)mask);
 
@@ -248,6 +254,9 @@ static void redisAeWriteEvent(aeEventLoop *el, int fd, void *privdata, int mask)
     redisAsyncHandleWrite(e->context);
 }
 
+/*
+ * 添加读事件
+ */
 static void redisAeAddRead(void *privdata) {
     redisAeEvents *e = (redisAeEvents*)privdata;
     aeEventLoop *loop = e->loop;
@@ -257,6 +266,9 @@ static void redisAeAddRead(void *privdata) {
     }
 }
 
+/*
+ * 删除读事件
+ */
 static void redisAeDelRead(void *privdata) {
     redisAeEvents *e = (redisAeEvents*)privdata;
     aeEventLoop *loop = e->loop;
@@ -266,6 +278,9 @@ static void redisAeDelRead(void *privdata) {
     }
 }
 
+/*
+ * 添加写事件
+ */
 static void redisAeAddWrite(void *privdata) {
     redisAeEvents *e = (redisAeEvents*)privdata;
     aeEventLoop *loop = e->loop;
@@ -275,6 +290,9 @@ static void redisAeAddWrite(void *privdata) {
     }
 }
 
+/*
+ * 删除写事件
+ */
 static void redisAeDelWrite(void *privdata) {
     redisAeEvents *e = (redisAeEvents*)privdata;
     aeEventLoop *loop = e->loop;
@@ -284,6 +302,9 @@ static void redisAeDelWrite(void *privdata) {
     }
 }
 
+/*
+ * 清除事件
+ */
 static void redisAeCleanup(void *privdata) {
     redisAeEvents *e = (redisAeEvents*)privdata;
     redisAeDelRead(privdata);
@@ -291,6 +312,9 @@ static void redisAeCleanup(void *privdata) {
     zfree(e);
 }
 
+/*
+ * 关联一个网络事件结构体
+ */
 static int redisAeAttach(aeEventLoop *loop, redisAsyncContext *ac) {
     redisContext *c = &(ac->c);
     redisAeEvents *e;
