@@ -174,7 +174,7 @@ typedef struct sentinelRedisInstance {
     mstime_t slave_conf_change_time; /* Last time slave master addr changed. */
 
     /* Master specific. */
-    /* 监控该节点色哨兵 */
+    /* 监控该节点哨兵 */
     dict *sentinels;    /* Other sentinels monitoring the same master. */
     /* 从节点dict */
     dict *slaves;       /* Slaves for this master instance. */
@@ -1336,7 +1336,7 @@ void sentinelDelFlagsToDictOfRedisInstances(dict *instances, int flags) {
  */
 void sentinelResetMaster(sentinelRedisInstance *ri, int flags) {
     redisAssert(ri->flags & SRI_MASTER);
-    dictRelease(ri->slaves);
+    dictRelease(ri->slaves);                            //释放所有slave节点实例
     ri->slaves = dictCreate(&instancesDictType,NULL);
     if (!(flags & SENTINEL_RESET_NO_SENTINELS)) {
         dictRelease(ri->sentinels);
@@ -1436,7 +1436,7 @@ int sentinelResetMasterAndChangeAddress(sentinelRedisInstance *master, char *ip,
     }
 
     /* Reset and switch address. */
-    sentinelResetMaster(master,SENTINEL_RESET_NO_SENTINELS);
+    sentinelResetMaster(master,SENTINEL_RESET_NO_SENTINELS);        //此处会释放掉所有从节点的实例
     oldaddr = master->addr;
     master->addr = newaddr;
     master->o_down_since_time = 0;
