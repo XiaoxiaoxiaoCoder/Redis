@@ -95,6 +95,9 @@ void latencyMonitorInit(void) {
  * This function is usually called via latencyAddSampleIfNeeded(), that
  * is a macro that only adds the sample if the latency is higher than
  * server.latency_monitor_threshold. */
+/*
+ * 添加指定事件 event 的样本数据至样本集中
+ */
 void latencyAddSample(char *event, mstime_t latency) {
     struct latencyTimeSeries *ts = dictFetchValue(server.latency_events,event);
     time_t now = time(NULL);
@@ -131,6 +134,9 @@ void latencyAddSample(char *event, mstime_t latency) {
  *
  * Note: this is O(N) even when event_to_reset is not NULL because makes
  * the code simpler and we have a small fixed max number of events. */
+/*
+ * 重置指定事件的样本集
+ */
 int latencyResetEvent(char *event_to_reset) {
     dictIterator *di;
     dictEntry *de;
