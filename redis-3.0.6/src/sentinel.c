@@ -197,7 +197,7 @@ typedef struct sentinelRedisInstance {
     char *slave_master_host;    /* Master host as reported by INFO */
     /* 从节点对应的主节点端口 */
     int slave_master_port;      /* Master port as reported by INFO */
-    /* 从节点对应的主节点的状态 */
+    /* 从节点对应的主节点的链接状态 */
     int slave_master_link_status; /* Master link status as reported by INFO */
     /* 从节点同步的偏移量 */
     unsigned long long slave_repl_offset; /* Slave replication offset. */
@@ -2027,7 +2027,7 @@ void sentinelRefreshInstanceInfo(sentinelRedisInstance *ri, const char *info) {
             if (ri->runid == NULL) {
                 ri->runid = sdsnewlen(l+7,40);
             } else {
-                if (strncmp(ri->runid,l+7,40) != 0) {
+                if (strncmp(ri->runid,l+7,40) != 0) {                   //run_id 变化，有可能redis重启
                     sentinelEvent(REDIS_NOTICE,"+reboot",ri,"%@");
                     sdsfree(ri->runid);
                     ri->runid = sdsnewlen(l+7,40);
