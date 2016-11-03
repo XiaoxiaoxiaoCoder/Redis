@@ -726,6 +726,7 @@ dictType replScriptCacheDictType = {
 
 /*
  * 检测 hash 表是否需要重置大小
+ * 当 hash 的节点数小于桶数量的10%并且桶的数量大于 DICT_HT_INITIAL_SIZE 的时候调整其大小
  */
 int htNeedsResize(dict *dict) {
     long long size, used;
